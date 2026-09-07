@@ -52,7 +52,9 @@ export function DocumentPane() {
               <Hand className="h-3 w-3" /> assistant editing
             </span>
           )}
-          {state.isSaving ? (
+          {state.isRetryingSave ? (
+            <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> retrying save</span>
+          ) : state.isSaving ? (
             <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> saving</span>
           ) : state.isRendering ? (
             <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> rendering</span>
@@ -63,6 +65,23 @@ export function DocumentPane() {
           )}
         </div>
       </div>
+      {state.saveError && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-one-red/5 px-6 py-3 text-xs">
+          <div className="space-y-1">
+            <p className="text-one-red">{state.saveError}</p>
+            <p className="text-muted-foreground">
+              Your draft is kept in this tab. Keep it open until saving succeeds.
+              {state.isRetryingSave && ` Retrying automatically (${data.retryCount + 1}/${data.maxSaveRetries})…`}
+              {state.isSaving && " Saving again…"}
+            </p>
+          </div>
+          {state.canRetrySave && (
+            <button onClick={actions.retry.save} className="shrink-0 rounded-md bg-primary/15 px-3 py-1.5 text-primary hover:opacity-80">
+              Retry save
+            </button>
+          )}
+        </div>
+      )}
       <TabsContent value="source" className="mt-0 min-h-0 flex-1">
         <textarea
           value={data.document.content}

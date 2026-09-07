@@ -62,9 +62,10 @@ function DevelopmentInspection({ inspector }: { inspector: ReturnType<typeof cre
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const inspector = useMemo(
-    () => process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
-      ? createDevelopmentInspector("ws://127.0.0.1:7358")
-      : null,
+    () =>
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
+        ? createDevelopmentInspector("ws://127.0.0.1:7358")
+        : null,
     [],
   );
   return (

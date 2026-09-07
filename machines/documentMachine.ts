@@ -1,5 +1,5 @@
-import { assign, fromPromise, sendParent, setup } from "xstate";
-import type { Block, StudioDocument } from "@/types";
+import { assign, fromPromise, sendParent, setup, stateIn } from "xstate";
+import { MAX_SAVE_RETRIES, type Block, type StudioDocument } from "@/types";
 import { parseBlocks } from "@/lib/blocks";
 import { actorError, doneOutput } from "@/lib/xstate-utils";
 import {
@@ -36,6 +36,7 @@ export interface DocumentContext {
   selection: string | null;
   pending: PendingDocumentAction | null;
   saveError: string | null;
+  retryCount: number;
 }
 
 export type DocumentEvents =
@@ -50,6 +51,7 @@ export type DocumentEvents =
       sessionId: string;
     }
   | { type: "user.edit"; content: string }
+  | { type: "user.retrySave" }
   | { type: "user.select"; blockId: string | null }
   | { type: "user.rename"; name: string };
 
@@ -100,6 +102,7 @@ export const documentMachine = setup({
     context: {} as DocumentContext,
     events: {} as DocumentEvents,
   },
+  delays: { saveRetry: 1500 },
   actors: {
     renderer: fromPromise(async ({ input }: { input: { codes: string[] } }) => {
       const cache: RenderCache = {};
@@ -151,8 +154,9 @@ export const documentMachine = setup({
       blocks: ({ event }) => (event.type === "app.open" ? parseBlocks(event.document.content) : []),
       selection: null,
       saveError: null,
+      retryCount: 0,
     }),
-    closeDocument: assign({ document: null, blocks: [], selection: null, pending: null }),
+    closeDocument: assign({ document: null, blocks: [], selection: null, pending: null, saveError: null, retryCount: 0 }),
     syncDocument: assign({
       document: ({ context, event }) =>
         event.type === "app.sync" && context.document?.id === event.document.id
@@ -218,6 +222,7 @@ export const documentMachine = setup({
       blocks: ({ event }) => parseBlocks(doneOutput<StudioDocument>(event).content),
       selection: null,
       saveError: null,
+      retryCount: 0,
     }),
     mergeRenders: assign({
       renderCache: ({ context, event }) => ({
@@ -236,9 +241,22 @@ export const documentMachine = setup({
       },
     }),
     setSaveError: assign({
-      saveError: ({ event }) => `Could not save: ${String(actorError(event))}`,
+      saveError: ({ event }) => {
+        const error = actorError(event);
+        return error === null || error === undefined
+          ? "Could not save to this browser. Check available storage and retry."
+          : `Could not save: ${String(error)}`;
+      },
     }),
     clearSaveError: assign({ saveError: null }),
+    resetRetries: assign({ retryCount: 0 }),
+    incrementRetries: assign({ retryCount: ({ context }) => context.retryCount + 1 }),
+    replySaveFailed: sendParent(({ context }) => ({
+      type: "document.actionResult" as const,
+      callId: requirePending(context).callId,
+      outcome: "failed" as const,
+      result: { error: context.saveError },
+    })),
     reportOpened: sendParent(({ context }) => ({
       type: "document.opened" as const,
       document: context.document as StudioDocument,
@@ -295,6 +313,10 @@ export const documentMachine = setup({
     })),
   },
   guards: {
+    hasSaveError: ({ context }) => context.saveError !== null,
+    saveHasNewerDraft: stateIn({ open: { saving: "changed" } }),
+    retriesExhausted: ({ context }) => context.retryCount >= MAX_SAVE_RETRIES,
+    retriesExhaustedWithPending: ({ context }) => context.retryCount >= MAX_SAVE_RETRIES && context.pending !== null,
     hasDocument: ({ context }) => context.document !== null,
     hasPending: ({ context }) => context.pending !== null,
     pendingInvalid: ({ context }) => context.pending !== null && !context.pending.parsed.ok,
@@ -323,6 +345,7 @@ export const documentMachine = setup({
     "- selection (string | null): the selected block id, reported in the host context.",
     "- pending (PendingDocumentAction | null): the host action being executed: call id, the session it belongs to, the parsed action and the block its result names.",
     "- saveError (string | null): why the last save to IndexedDB failed.",
+    "- retryCount (number): automatic retries started for this draft; resets on success, new edits, document changes or manual retry.",
   ].join("\n"),
   context: {
     document: null,
@@ -331,6 +354,7 @@ export const documentMachine = setup({
     selection: null,
     pending: null,
     saveError: null,
+    retryCount: 0,
   },
   initial: "closed",
   on: {
@@ -372,10 +396,10 @@ export const documentMachine = setup({
           target: "finding",
         },
         {
-          description: "rename_document on the open document: rename in place, save, reply.",
+          description: ["Rename the open document, save, then reply.", "", "Actions:", "- renameOpenFromPending: apply the requested name", "- resetRetries: start a fresh save budget"].join("\n"),
           guard: "pendingRenamesOpen",
           target: "open.saving",
-          actions: "renameOpenFromPending",
+          actions: ["renameOpenFromPending", "resetRetries"],
         },
         {
           description: "rename_document on another document: update it in the store.",
@@ -383,10 +407,10 @@ export const documentMachine = setup({
           target: "renaming",
         },
         {
-          description: "A block edit that applies: update content and blocks, then save and render.",
+          description: ["Apply the block edit, then save and render.", "", "Actions:", "- applyPendingEdit: update content, blocks and selection", "- resetRetries: start a fresh save budget"].join("\n"),
           guard: "editApplies",
           target: "open.saving",
-          actions: "applyPendingEdit",
+          actions: ["applyPendingEdit", "resetRetries"],
         },
         {
           description: "A block edit that references an unknown block.",
@@ -517,18 +541,18 @@ export const documentMachine = setup({
           actions: "syncDocument",
         },
         "user.edit": {
-          description: "The user typed in the source editor; reparse and schedule a save.",
+          description: ["Schedule a save after typing pauses.", "", "Actions:", "- editContent: update the draft and reparse blocks", "- resetRetries: give the new draft a fresh retry budget"].join("\n"),
           target: ".dirty",
-          actions: "editContent",
+          actions: ["editContent", "resetRetries"],
         },
         "user.select": {
           description: "The user selected a block in the preview.",
           actions: "select",
         },
         "user.rename": {
-          description: "The user renamed the open document.",
+          description: ["Save the user's new document name.", "", "Actions:", "- renameOpen: update the name", "- resetRetries: start a fresh save budget"].join("\n"),
           target: ".saving",
-          actions: "renameOpen",
+          actions: ["renameOpen", "resetRetries"],
         },
       },
       states: {
@@ -538,6 +562,12 @@ export const documentMachine = setup({
             src: "renderer",
             input: ({ context }) => ({ codes: missingRenders(context.blocks, context.renderCache) }),
             onDone: [
+              {
+                description: "The draft rendered but storage failed; begin bounded save recovery without declaring success.",
+                guard: "hasSaveError",
+                target: "saveFailed",
+                actions: "mergeRenders",
+              },
               {
                 description: "Rendered; a pending host action gets its result now.",
                 guard: "hasPending",
@@ -551,6 +581,12 @@ export const documentMachine = setup({
               },
             ],
             onError: [
+              {
+                description: "Record the renderer failure while the unsaved draft enters save recovery.",
+                guard: "hasSaveError",
+                target: "saveFailed",
+                actions: "markRenderFailure",
+              },
               {
                 description: "Mermaid itself failed; the affected diagrams are marked and the action still replies.",
                 guard: "hasPending",
@@ -566,19 +602,92 @@ export const documentMachine = setup({
           },
         },
         saving: {
-          description: "Writing the document to IndexedDB. Invokes saver.",
+          description: "One IndexedDB write is in flight.\n- current: no newer draft\n- changed: keep edits in memory until this write settles, then save the latest draft",
+          initial: "current",
+          states: {
+            current: { description: "The in-flight write contains the current draft." },
+            changed: { description: "The user edited during the write; its completion cannot mark the newer draft saved." },
+          },
+          on: {
+            "user.edit": {
+              description: ["Keep the new draft while the existing write finishes.", "", "Actions:", "- editContent: retain and reparse the latest draft", "- resetRetries: give the new draft a fresh retry budget"].join("\n"),
+              target: ".changed",
+              actions: ["editContent", "resetRetries"],
+            },
+            "user.rename": {
+              description: ["Keep the new name while the existing write finishes.", "", "Actions:", "- renameOpen: update the draft name", "- resetRetries: give the new draft a fresh retry budget"].join("\n"),
+              target: ".changed",
+              actions: ["renameOpen", "resetRetries"],
+            },
+          },
           invoke: {
             src: "saver",
             input: ({ context }) => ({ document: context.document as StudioDocument }),
-            onDone: {
-              description: "Saved; tell the app, then render.",
-              target: "rendering",
-              actions: ["clearSaveError", "reportSaved"],
+            onDone: [
+              {
+                description: "An older draft committed; report that write and immediately save the newest draft in a new invocation.",
+                guard: "saveHasNewerDraft",
+                target: "saving",
+                reenter: true,
+                actions: "reportSaved",
+              },
+              {
+                description: ["The current draft committed; render it.", "", "Actions:", "- clearSaveError: clear the error only after storage succeeds", "- resetRetries: reset the automatic retry budget", "- reportSaved: notify the app of the persisted document"].join("\n"),
+                target: "rendering",
+                actions: ["clearSaveError", "resetRetries", "reportSaved"],
+              },
+            ],
+            onError: [
+              {
+                description: "An older write failed; preserve the error and debounce the new draft without overlapping writes.",
+                guard: "saveHasNewerDraft",
+                target: "dirty",
+                actions: "setSaveError",
+              },
+              {
+                description: "The current write failed; retain the draft and error, render, then enter bounded recovery.",
+                target: "rendering",
+                actions: "setSaveError",
+              },
+            ],
+          },
+        },
+        saveFailed: {
+          description: "The rendered draft is still unsaved. Two automatic retries precede a manual fallback.",
+          initial: "retrying",
+          states: {
+            retrying: {
+              description: "Wait briefly before another save, unless the automatic retry budget is exhausted.",
+              always: [
+                {
+                  description: ["Storage retries exhausted during a host action; show the manual fallback.", "", "Actions:", "- replySaveFailed: report the persistence failure once", "- clearPending: finish the host action"].join("\n"),
+                  guard: "retriesExhaustedWithPending",
+                  target: "failed",
+                  actions: ["replySaveFailed", "clearPending"],
+                },
+                {
+                  description: "Automatic retries exhausted; keep the draft for manual recovery.",
+                  guard: "retriesExhausted",
+                  target: "failed",
+                },
+              ],
+              after: {
+                saveRetry: {
+                  description: "Start the next bounded retry of the current draft.",
+                  target: "#document.open.saving",
+                  actions: "incrementRetries",
+                },
+              },
             },
-            onError: {
-              description: "The write failed; keep editing in memory and render anyway.",
-              target: "rendering",
-              actions: "setSaveError",
+            failed: {
+              description: "Automatic saves stopped. Keep the draft in this tab and let the user retry after fixing storage.",
+              on: {
+                "user.retrySave": {
+                  description: "The user retries the current draft with a fresh automatic retry budget.",
+                  target: "#document.open.saving",
+                  actions: "resetRetries",
+                },
+              },
             },
           },
         },

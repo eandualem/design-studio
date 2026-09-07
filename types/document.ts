@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const MAX_SAVE_RETRIES = 2;
+
 export const BlockKindSchema = z.enum(["text", "diagram"]);
 export type BlockKind = z.infer<typeof BlockKindSchema>;
 
