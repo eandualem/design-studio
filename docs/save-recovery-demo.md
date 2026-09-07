@@ -47,6 +47,12 @@ request or making a code change. It is not a pre-scripted repair demonstration.
 
 Chrome and Playwright's recording helper must be installed. The profile lives
 under the evidence directory; it never uses the normal browser's documents.
+Install the helper with `bunx playwright-core install ffmpeg`. When the page has
+two New document buttons, use `{"op":"click","name":"New document","index":1}`.
+Wait for navigation to `/d/<id>` before selecting Source; routing remounts that
+page's view state. Run the Next development server with filesystem watcher access;
+macOS sandbox-denied watchers appeared as EMFILE errors and missing routes here.
+Do not run a production build against the same `.next` directory while dev runs.
 
 ## Inspection boundary
 
@@ -73,6 +79,23 @@ The adapter retains at most 128 actor references, 100 offline events, 64 KiB per
 frame and 2 MiB total serialized data; it also caps socket buffered bytes. It
 replays definitions, recent events and finally latest snapshots on reconnect.
 StrictMode setup/cleanup closes the old socket; unmount clears data after the
-synchronous development remount window. HMR relies on React effect cleanup.
+synchronous development remount window. Connection creation waits until that
+window settles, avoiding a socket handshake for an abandoned effect. HMR creates
+a new inspector/provider generation and cleans up the old one; it reloads the
+persisted document, so this development reset does not preserve unsaved drafts.
 Production and development without `NEXT_PUBLIC_XSTATE_INSPECT=1` create no
 inspection adapter or connection. No shared MCP configuration changes are needed.
+
+## Result
+
+The baseline evidence was committed in `4c8bc79` before recovery implementation.
+The fix is `0da1b6a`: two automatic retries, 1.5 seconds apart, followed by a
+visible Retry save button. New edits reset the retry budget. An outstanding save
+finishes before the latest edited draft is written; manual retries are accepted
+only at the fallback. Storage success clears the error and acknowledges saved.
+Exhausted host saves reply failed once; Mermaid render failures retain their
+successful-action/failed-render contract.
+
+See [evidence and exact versions](evidence/save-recovery/README.md). The local
+PR description is [save-recovery-pr.md](save-recovery-pr.md); it is intentionally
+not published. The original checkout and its untracked `.agents/` are untouched.
