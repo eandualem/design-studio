@@ -74,8 +74,17 @@ feature commit `0da1b6ae93a65c376022874f2d687f23f26352a8`. Its regression check
 replaced only the document machine with the baseline implementation: eight of
 nine new tests failed, then the feature source was restored before final checks.
 This independently corroborates the code checks, not the recording provenance;
-the attached recordings remain the Node 26 run documented above. The peer's live
-Node 24 MCP/browser check is still in progress.
+the attached recordings remain the Node 26 run documented above.
+
+The peer's [completed live Node 24 MCP/browser check](https://github.com/eandualem/design-studio/issues/1#issuecomment-5575021694)
+separately verifies three aborted writes, retry exhaustion with the draft retained,
+policy rejection of `user.delete`, accepted `user.retrySave`, `open.ready` with
+the error cleared, and the exact recovered draft in IndexedDB before and after
+reload. It also verifies plain definition targets and named guards, one actor
+system, zero actors after unmount, and both owned server ports released and
+successfully rebound. That run's transcript and screenshots are published in
+[xstate-mcp PR #34](https://github.com/eandualem/xstate-mcp/pull/34), not substituted
+for the original recordings in this directory.
 
 All storage faults are fixtures calling actual IndexedDB `transaction.abort()`.
 No paid/live in-app model session occurred; port 7100 traffic was blocked, so

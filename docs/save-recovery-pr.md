@@ -36,7 +36,13 @@ all 81 tests and production build on Node 24.20.0/Bun 1.4.2 at exact feature
 commit `0da1b6ae93a65c376022874f2d687f23f26352a8`. Replacing only the document
 machine with the original implementation makes eight of nine new recovery tests
 fail. This is separate from the Node 26 browser recordings; the peer's live
-Node 24 MCP/browser validation is still in progress.
+Node 24 MCP/browser validation is also
+[complete](https://github.com/eandualem/design-studio/issues/1#issuecomment-5575021694).
+That independent run verifies exhaustion with the draft retained, policy rejection
+of `user.delete`, accepted `user.retrySave`, cleared errors, exact persisted text
+before and after reload, one actor system, definition targets/guards, unmount
+cleanup and released/rebindable server ports. Its transcript and screenshots are
+in [the integration review PR](https://github.com/eandualem/xstate-mcp/pull/34).
 
 No in-app model call, runtime changes or shared MCP configuration changes.
 Coding-agent model identity is GPT-6 as reported by the system; exact deployment
