@@ -39,7 +39,7 @@ function harness() {
     context: ({ spawn }) => ({ child: spawn("child", { id: "document" }) }),
   }), { inspect: inspector.inspect });
   parent.start();
-  inspector.start();
+  inspector.start(parent);
   const socket = Socket.instances[0];
   socket.open();
   return { parent, inspector, socket };
@@ -83,14 +83,14 @@ it("denies disabled, malformed and wrong-actor commands but dispatches a validat
 it("replays the current tree through StrictMode restart and clears it on final unmount", async () => {
   const { parent, inspector } = harness();
   inspector.stop();
-  inspector.start();
+  inspector.start(parent);
   await Promise.resolve();
   Socket.instances[1].open();
   expect(Socket.instances[1].sent.filter((frame) => JSON.parse(frame).type === "@xstate.actor")).toHaveLength(3);
   parent.stop();
   inspector.stop();
   await Promise.resolve();
-  inspector.start();
+  inspector.start(parent);
   Socket.instances[2].open();
   expect(Socket.instances[2].sent).toEqual([]);
   inspector.stop();
@@ -99,7 +99,21 @@ it("replays the current tree through StrictMode restart and clears it on final u
 it("never connects when built for production", () => {
   vi.stubEnv("NODE_ENV", "production");
   const inspector = createDevelopmentInspector("ws://127.0.0.1:7358");
-  inspector.start();
+  inspector.start(createActor(setup({}).createMachine({})));
   expect(Socket.instances).toHaveLength(0);
+  inspector.stop();
+});
+
+it("discards actors created by an abandoned StrictMode render before connecting", () => {
+  const inspector = createDevelopmentInspector("ws://127.0.0.1:7358");
+  const machine = setup({}).createMachine({ id: "root" });
+  createActor(machine, { inspect: inspector.inspect });
+  const committed = createActor(machine, { inspect: inspector.inspect });
+  committed.start();
+  inspector.start(committed);
+  const socket = Socket.instances[0];
+  socket.open();
+  expect(socket.sent.filter((frame) => JSON.parse(frame).type === "@xstate.actor")).toHaveLength(1);
+  committed.stop();
   inspector.stop();
 });

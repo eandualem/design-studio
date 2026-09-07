@@ -51,18 +51,24 @@ function RoutingAdapter() {
   return null;
 }
 
+function DevelopmentInspection({ inspector }: { inspector: ReturnType<typeof createDevelopmentInspector> | null }) {
+  const actor = AppMachineContext.useActorRef();
+  useEffect(() => {
+    inspector?.start(actor);
+    return () => inspector?.stop();
+  }, [actor, inspector]);
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [inspector] = useState(() =>
     process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
       ? createDevelopmentInspector("ws://127.0.0.1:7358")
       : null,
   );
-  useEffect(() => {
-    inspector?.start();
-    return () => inspector?.stop();
-  }, [inspector]);
   return (
     <AppMachineContext.Provider options={inspector ? { inspect: inspector.inspect } : undefined}>
+      <DevelopmentInspection inspector={inspector} />
       <TooltipProvider delayDuration={200}>
         <PrefsLoader />
         <RoutingAdapter />

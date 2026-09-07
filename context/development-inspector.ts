@@ -10,6 +10,7 @@ export function createDevelopmentInspector(url: string) {
   const epoch = crypto.randomUUID();
   const wireId = (sessionId: string) => `${epoch}:${sessionId}`;
   let active = false;
+  let system: AnyActor["system"] | undefined;
   const guard = createInspectionGuard({
     enabled: process.env.NODE_ENV === "development",
     writePolicy: { readOnly: false, allow: [{ actor: "*", events: ["user.edit", "user.retrySave"] }] },
@@ -32,6 +33,7 @@ export function createDevelopmentInspector(url: string) {
   function inspect(event: InspectionEvent) {
     if (!guard.enabled || !["@xstate.actor", "@xstate.snapshot", "@xstate.event"].includes(event.type)) return;
     const actor = event.actorRef as AnyActor;
+    if (system && actor.system !== system) return;
     const sessionId = wireId(actor.sessionId);
     if (!actors.has(sessionId)) {
       if (actors.size >= MAX_ACTORS) {
@@ -82,8 +84,14 @@ export function createDevelopmentInspector(url: string) {
 
   return {
     inspect,
-    start() {
+    start(root: AnyActor) {
       if (!guard.enabled) return;
+      system = root.system;
+      for (const [sessionId, actor] of actors) {
+        if (actor.system === system) continue;
+        actors.delete(sessionId);
+        transport.forget(sessionId);
+      }
       active = true;
       transport.start();
     },
@@ -94,6 +102,7 @@ export function createDevelopmentInspector(url: string) {
         if (active) return;
         actors.clear();
         transport.clear();
+        system = undefined;
       });
     },
   };

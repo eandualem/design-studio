@@ -5,7 +5,7 @@ const MAX_EVENTS = 100;
 export function createInspectionTransport(url: string, onCommand: (data: unknown) => void) {
   const registrations = new Map<string, string>();
   const snapshots = new Map<string, string>();
-  const recent: string[] = [];
+  const recent: { sessionId: string; frame: string }[] = [];
   let retainedBytes = 0;
   let socket: WebSocket | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -24,6 +24,11 @@ export function createInspectionTransport(url: string, onCommand: (data: unknown
   }
 
   function forget(sessionId: string) {
+    for (let index = recent.length - 1; index >= 0; index--) {
+      if (recent[index].sessionId !== sessionId) continue;
+      retainedBytes -= bytes(recent[index].frame);
+      recent.splice(index, 1);
+    }
     for (const frames of [registrations, snapshots]) {
       const previous = frames.get(sessionId);
       if (previous) retainedBytes -= bytes(previous);
@@ -39,7 +44,7 @@ export function createInspectionTransport(url: string, onCommand: (data: unknown
       if (!active || socket !== current) return;
       retryDelay = 250;
       for (const frame of registrations.values()) send(frame);
-      for (const frame of recent.splice(0)) {
+      for (const { frame } of recent.splice(0)) {
         retainedBytes -= bytes(frame);
         send(frame);
       }
@@ -90,10 +95,10 @@ export function createInspectionTransport(url: string, onCommand: (data: unknown
       if (kind === "event") {
         if (send(frame)) return;
         while (recent.length && (recent.length >= MAX_EVENTS || retainedBytes + size > MAX_RETAINED_BYTES)) {
-          retainedBytes -= bytes(recent.shift()!);
+          retainedBytes -= bytes(recent.shift()!.frame);
         }
         if (retainedBytes + size > MAX_RETAINED_BYTES) return;
-        recent.push(frame);
+        recent.push({ sessionId, frame });
         retainedBytes += size;
       } else {
         const frames = kind === "actor" ? registrations : snapshots;
