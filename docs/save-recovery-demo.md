@@ -96,6 +96,7 @@ only at the fallback. Storage success clears the error and acknowledges saved.
 Exhausted host saves reply failed once; Mermaid render failures retain their
 successful-action/failed-render contract.
 
-See [evidence and exact versions](evidence/save-recovery/README.md). The local
-PR description is [save-recovery-pr.md](save-recovery-pr.md); it is intentionally
-not published. The original checkout and its untracked `.agents/` are untouched.
+See [evidence and exact versions](evidence/save-recovery/README.md) and the
+[review PR description](save-recovery-pr.md). Branch publication is authorized;
+merging, deployment and package releases remain for maintainer review. The
+original checkout and its untracked `.agents/` are untouched.

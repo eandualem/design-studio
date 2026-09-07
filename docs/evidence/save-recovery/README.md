@@ -3,7 +3,9 @@
 Baseline `e1bd77533decbb0a139c152cd5c0a8ae8d3eca81`; save fix `0da1b6a`.
 The coding agent recorded its observation in commit `4c8bc79` before changing
 save behavior. Instrumentation started in `95e77e2` and was refined using actual
-MCP/browser observations through `3087f60`. No merge, push or PR publication.
+MCP/browser observations through `3087f60`. Only sanitized artifacts accompany
+the review branch. Merging, deployment and package releases remain for maintainer
+review.
 
 - [Before: saved document](01-before-saved.png)
 - [Before: failed save with no recovery](02-before-not-saved.png)
@@ -64,6 +66,16 @@ dependencies. It is an unmerged `xstate-mcp` development build pinned to
 stdio handshake says 1.0.0. This run used Node 26.8.1, not a claim about the
 upstream supported runtime matrix. Upstream reliability/release integration
 remains open.
+
+[Independent validation by xstate-mcp](https://github.com/eandualem/design-studio/issues/1#issuecomment-5574824232)
+passes frozen installation, standalone inspector preparation, lint, full
+TypeScript, all 81 tests and production build on Node 24.20.0/Bun 1.4.2 at exact
+feature commit `0da1b6ae93a65c376022874f2d687f23f26352a8`. Its regression check
+replaced only the document machine with the baseline implementation: eight of
+nine new tests failed, then the feature source was restored before final checks.
+This independently corroborates the code checks, not the recording provenance;
+the attached recordings remain the Node 26 run documented above. The peer's live
+Node 24 MCP/browser check is still in progress.
 
 All storage faults are fixtures calling actual IndexedDB `transaction.abort()`.
 No paid/live in-app model session occurred; port 7100 traffic was blocked, so

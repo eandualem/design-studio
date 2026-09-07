@@ -1,7 +1,8 @@
 # fix: recover failed document saves with bounded retries
 
 For https://github.com/eandualem/design-studio/issues/1.
-Local PR draft; do not publish or merge without further authorization.
+For review only. Merging, deployment and package releases remain for maintainer
+review.
 
 An aborted IndexedDB save left the UI at `not saved` while the document machine
 returned to `open.ready`, with no retry transition and older text still stored.
@@ -28,6 +29,14 @@ Validation: 81 tests pass, lint passes, production build/typecheck passes. Real
 browser/MCP runs cover command rejection, automatic/manual recovery, persisted
 reload, hierarchy replay, native socket cleanup and zero production inspection
 connections. [Screenshots, transcript, versions and recording](evidence/save-recovery/README.md).
+
+[Independent validation by xstate-mcp](https://github.com/eandualem/design-studio/issues/1#issuecomment-5574824232)
+also passes frozen installation, inspector preparation, lint, full TypeScript,
+all 81 tests and production build on Node 24.20.0/Bun 1.4.2 at exact feature
+commit `0da1b6ae93a65c376022874f2d687f23f26352a8`. Replacing only the document
+machine with the original implementation makes eight of nine new recovery tests
+fail. This is separate from the Node 26 browser recordings; the peer's live
+Node 24 MCP/browser validation is still in progress.
 
 No in-app model call, runtime changes or shared MCP configuration changes.
 Coding-agent model identity is GPT-6 as reported by the system; exact deployment
