@@ -79,7 +79,11 @@ async function run(command) {
     case "tools": return client.listTools();
     case "tool": return client.callTool({ name: command.name, arguments: command.arguments ?? {} });
     case "browser": return browser();
-    case "click": await page.getByRole(command.role ?? "button", { name: command.name, exact: true }).click(); return { clicked: command.name };
+    case "click": {
+      const locator = page.getByRole(command.role ?? "button", { name: command.name, exact: true });
+      await (command.index === undefined ? locator : locator.nth(command.index)).click();
+      return { clicked: command.name };
+    }
     case "edit": await page.locator('textarea[spellcheck="false"]').fill(command.content); return { edited: command.content.length };
     case "fault": return page.evaluate((remaining) => Object.assign(window.__saveRecoveryFixture, { remaining }), command.count);
     case "view": return { url: page.url(), text: await page.locator("body").innerText(), fixture: await page.evaluate(() => window.__saveRecoveryFixture) };

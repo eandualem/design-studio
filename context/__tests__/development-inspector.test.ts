@@ -30,8 +30,9 @@ function harness() {
     states: {
       open: {
         invoke: { src: "worker" },
-        on: { "user.edit": { actions: assign({ document: ({ event }) => ({ id: "synthetic", content: event.content }) }) } },
+        on: { "user.edit": { target: "saved", actions: assign({ document: ({ event }) => ({ id: "synthetic", content: event.content }) }) } },
       },
+      saved: {},
     },
   });
   const parent = createActor(setup({ actors: { child } }).createMachine({
@@ -56,6 +57,7 @@ it("inspects real root, spawned and invoked actors without transferring private 
   const worker = registrations.find((frame) => frame.parentId === document.sessionId);
   expect(document.parentId).toBe(root.sessionId);
   expect(document.definition.states.open.on["user.edit"]).toBeDefined();
+  expect(document.definition.states.open.on["user.edit"][0].target).toEqual(["document.saved"]);
   expect(worker.definition).toBeUndefined();
   expect(socket.sent.join("\n")).not.toContain("private-");
   parent.stop();

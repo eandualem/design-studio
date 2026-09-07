@@ -1,9 +1,39 @@
-import type { AnyActor, InspectionEvent } from "xstate";
+import type { AnyActor, AnyStateMachine, InspectionEvent } from "xstate";
 import { createInspectionGuard } from "xstate-mcp/inspection-policy";
 import { createInspectionTransport } from "@/lib/inspection-transport";
 import { InspectionCommandSchema, InspectionDocumentEventSchema } from "@/types";
 
 const MAX_ACTORS = 128;
+
+function describeAction(action: unknown): unknown {
+  if (typeof action === "string" || typeof action === "object") return action;
+  if (typeof action === "function" && "type" in action) return { type: action.type };
+  return { type: "inline action" };
+}
+
+function machineDefinition(node: AnyStateMachine["root"]): unknown {
+  return {
+    id: node.id,
+    key: node.key,
+    type: node.type,
+    description: node.description,
+    initial: { target: node.initial.target.map((target) => target.id) },
+    states: Object.fromEntries(Object.entries(node.states).map(([key, child]) => [key, machineDefinition(child)])),
+    on: Object.fromEntries([...node.transitions].map(([eventType, transitions]) => [eventType, transitions.map((transition) => ({
+      eventType,
+      description: transition.description,
+      source: transition.source.id,
+      target: transition.target?.map((target) => target.id),
+      guard: transition.guard,
+      actions: transition.actions.map(describeAction),
+      reenter: transition.reenter,
+    }))])),
+    entry: node.entry.map(describeAction),
+    exit: node.exit.map(describeAction),
+    invoke: node.invoke.map((invoke) => ({ id: invoke.id, src: typeof invoke.src === "string" ? invoke.src : "actor logic" })),
+    tags: [...node.tags],
+  };
+}
 
 export function createDevelopmentInspector(url: string) {
   const actors = new Map<string, AnyActor>();
@@ -53,7 +83,7 @@ export function createDevelopmentInspector(url: string) {
         ...base,
         name: actor.logic.id ?? actor.id,
         parentId: actor._parent ? wireId(actor._parent.sessionId) : undefined,
-        definition: typeof actor.logic.toJSON === "function" ? actor.logic.toJSON() : undefined,
+        definition: actor.logic.root ? machineDefinition(actor.logic.root) : undefined,
       };
     } else if (event.type === "@xstate.snapshot") {
       kind = "snapshot";
