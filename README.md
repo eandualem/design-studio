@@ -82,11 +82,19 @@ assistant-runtime serve --port 7100
 git clone https://github.com/eandualem/design-studio
 cd design-studio
 bun install
+bun run inspector:prepare
 bun run dev
 ```
 
 Open <http://localhost:7130> and ask for something: *"Design a payment
 service with an API, a worker, Postgres and a queue."*
+
+This branch pins an unmerged development build of `xstate-mcp`;
+`inspector:prepare` builds its source locally. Inspection stays off unless
+explicitly enabled in development. The [save-recovery demo](docs/save-recovery-demo.md)
+uses real MCP observations and injected browser storage failures, with no runtime
+or provider key needed. Its [recorded evidence](docs/evidence/save-recovery/README.md)
+includes before/after screenshots and a short browser recording.
 
 `assistant-runtime docs` lists the runtime's own documentation and
 `assistant-runtime docs host-contract` prints a page; it ships with the

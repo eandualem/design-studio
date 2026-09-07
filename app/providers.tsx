@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppMachineContext } from "@/context/appContext";
+import { createDevelopmentInspector } from "@/context/development-inspector";
 import { useScreenshot } from "@/hooks/useScreenshot";
 import { readPrefs } from "@/lib/prefs";
 import { documentRoute, parseDocumentRoute } from "@/lib/routes";
@@ -50,9 +51,26 @@ function RoutingAdapter() {
   return null;
 }
 
+function DevelopmentInspection({ inspector }: { inspector: ReturnType<typeof createDevelopmentInspector> | null }) {
+  const actor = AppMachineContext.useActorRef();
+  useEffect(() => {
+    inspector?.start(actor);
+    return () => inspector?.stop();
+  }, [actor, inspector]);
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
+  const inspector = useMemo(
+    () =>
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
+        ? createDevelopmentInspector("ws://127.0.0.1:7358")
+        : null,
+    [],
+  );
   return (
-    <AppMachineContext.Provider>
+    <AppMachineContext.Provider key={inspector?.id} options={inspector ? { inspect: inspector.inspect } : undefined}>
+      <DevelopmentInspection inspector={inspector} />
       <TooltipProvider delayDuration={200}>
         <PrefsLoader />
         <RoutingAdapter />

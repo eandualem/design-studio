@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useSelector } from "@xstate/react";
-import type { Block, RenderResult } from "@/types";
+import { MAX_SAVE_RETRIES, type Block, type RenderResult } from "@/types";
 import { renderFor } from "@/lib/document-actions";
 import { useAppContext } from "./useAppContext";
 
@@ -20,6 +20,9 @@ export const useDocumentContext = () => {
   const renderCache = useSelector(documentRef, (s) => s.context.renderCache);
   const selection = useSelector(documentRef, (s) => s.context.selection);
   const saveError = useSelector(documentRef, (s) => s.context.saveError);
+  const retryCount = useSelector(documentRef, (s) => s.context.retryCount);
+  const isRetryingSave = useSelector(documentRef, (s) => s.matches({ open: { saveFailed: "retrying" } }));
+  const canRetrySave = useSelector(documentRef, (s) => s.matches({ open: { saveFailed: "failed" } }));
   const isOpen = useSelector(documentRef, (s) => s.matches("open"));
   const isSaving = useSelector(
     documentRef,
@@ -45,13 +48,15 @@ export const useDocumentContext = () => {
     (name: string) => documentRef.send({ type: "user.rename", name }),
     [documentRef],
   );
+  const retrySave = useCallback(() => documentRef.send({ type: "user.retrySave" }), [documentRef]);
 
   return {
-    state: { isOpen, isSaving, isRendering, isExecuting, saveError },
-    data: { document, preview, selection },
+    state: { isOpen, isSaving, isRendering, isExecuting, saveError, isRetryingSave, canRetrySave },
+    data: { document, preview, selection, retryCount, maxSaveRetries: MAX_SAVE_RETRIES },
     actions: {
       edit: { content: edit, rename },
       select: { block: select },
+      retry: { save: retrySave },
     },
   };
 };
