@@ -113,6 +113,7 @@ export function createDevelopmentInspector(url: string) {
   }
 
   return {
+    id: epoch,
     inspect,
     start(root: AnyActor) {
       if (!guard.enabled) return;

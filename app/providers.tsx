@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppMachineContext } from "@/context/appContext";
@@ -61,13 +61,14 @@ function DevelopmentInspection({ inspector }: { inspector: ReturnType<typeof cre
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [inspector] = useState(() =>
-    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
+  const inspector = useMemo(
+    () => process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_XSTATE_INSPECT === "1"
       ? createDevelopmentInspector("ws://127.0.0.1:7358")
       : null,
+    [],
   );
   return (
-    <AppMachineContext.Provider options={inspector ? { inspect: inspector.inspect } : undefined}>
+    <AppMachineContext.Provider key={inspector?.id} options={inspector ? { inspect: inspector.inspect } : undefined}>
       <DevelopmentInspection inspector={inspector} />
       <TooltipProvider delayDuration={200}>
         <PrefsLoader />
