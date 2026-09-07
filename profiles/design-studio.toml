@@ -1,0 +1,49 @@
+# Assistant profile for Design Studio. Run the runtime with
+#   ASSISTANT__PROFILE=/absolute/path/to/profiles/design-studio.toml
+# Shape: assistant_runtime.artifacts.load_profile_file.
+
+name = "design_studio"
+
+[[artifacts]]
+name = "persona"
+role = "who the assistant is: a design partner for software design documents"
+required = true
+default_file = "persona.md"
+
+[artifacts.policy]
+assistant_edit = "none"
+assistant_activate = false
+host_edit = true
+
+[[artifacts]]
+name = "communication_protocol"
+role = "how to work with the studio: host actions, block ids, render errors, screenshots"
+required = true
+default_file = "communication_protocol.md"
+
+[artifacts.policy]
+assistant_edit = "none"
+assistant_activate = false
+host_edit = true
+
+[[artifacts]]
+name = "diagram_style_guide"
+role = "the diagram conventions the assistant follows and may propose changes to"
+required = true
+default_file = "diagram_style_guide.md"
+
+[artifacts.policy]
+assistant_edit = "propose"
+assistant_activate = false
+host_edit = true
+
+[[artifacts]]
+name = "scratchpad"
+role = "short-lived working notes the assistant keeps for itself"
+required = false
+default = ""
+
+[artifacts.policy]
+assistant_edit = "autonomous"
+assistant_activate = false
+host_edit = true
