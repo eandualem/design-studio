@@ -21,9 +21,9 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-function harness() {
+async function harness() {
   const inspector = createDevelopmentInspector("ws://127.0.0.1:7358");
-  const child = setup({ actors: { worker: fromPromise(async () => "private-output") } }).createMachine({
+  const child = setup({ actors: { worker: fromPromise(async () => "private-output") }, guards: { stayHere: () => false } }).createMachine({
     id: "document",
     context: { document: { id: "synthetic", content: "private-content" }, blocks: [], saveError: "private-error" },
     initial: "open",
@@ -32,7 +32,7 @@ function harness() {
         invoke: { src: "worker" },
         on: { "user.edit": { target: "saved", actions: assign({ document: ({ event }) => ({ id: "synthetic", content: event.content }) }) } },
       },
-      saved: {},
+      saved: { always: { guard: "stayHere", target: "saved" } },
     },
   });
   const parent = createActor(setup({ actors: { child } }).createMachine({
@@ -41,13 +41,14 @@ function harness() {
   }), { inspect: inspector.inspect });
   parent.start();
   inspector.start(parent);
+  await Promise.resolve();
   const socket = Socket.instances[0];
   socket.open();
   return { parent, inspector, socket };
 }
 
 it("inspects real root, spawned and invoked actors without transferring private payloads", async () => {
-  const { parent, inspector, socket } = harness();
+  const { parent, inspector, socket } = await harness();
   await Promise.resolve();
   const frames = socket.sent.map((frame) => JSON.parse(frame));
   const registrations = frames.filter((frame) => frame.type === "@xstate.actor");
@@ -58,14 +59,15 @@ it("inspects real root, spawned and invoked actors without transferring private 
   expect(document.parentId).toBe(root.sessionId);
   expect(document.definition.states.open.on["user.edit"]).toBeDefined();
   expect(document.definition.states.open.on["user.edit"][0].target).toEqual(["document.saved"]);
+  expect(document.definition.states.saved.always[0]).toMatchObject({ guard: "stayHere", target: ["document.saved"] });
   expect(worker.definition).toBeUndefined();
   expect(socket.sent.join("\n")).not.toContain("private-");
   parent.stop();
   inspector.stop();
 });
 
-it("denies disabled, malformed and wrong-actor commands but dispatches a validated edit", () => {
-  const { parent, inspector, socket } = harness();
+it("denies disabled, malformed and wrong-actor commands but dispatches a validated edit", async () => {
+  const { parent, inspector, socket } = await harness();
   const registrations = socket.sent.map((frame) => JSON.parse(frame)).filter((frame) => frame.type === "@xstate.actor");
   const document = registrations.find((frame) => frame.name === "document");
   const root = registrations.find((frame) => frame.name === "app");
@@ -83,7 +85,7 @@ it("denies disabled, malformed and wrong-actor commands but dispatches a validat
 });
 
 it("replays the current tree through StrictMode restart and clears it on final unmount", async () => {
-  const { parent, inspector } = harness();
+  const { parent, inspector } = await harness();
   inspector.stop();
   inspector.start(parent);
   await Promise.resolve();
@@ -93,6 +95,7 @@ it("replays the current tree through StrictMode restart and clears it on final u
   inspector.stop();
   await Promise.resolve();
   inspector.start(parent);
+  await Promise.resolve();
   Socket.instances[2].open();
   expect(Socket.instances[2].sent).toEqual([]);
   inspector.stop();
@@ -106,13 +109,18 @@ it("never connects when built for production", () => {
   inspector.stop();
 });
 
-it("discards actors created by an abandoned StrictMode render before connecting", () => {
+it("discards actors created by an abandoned StrictMode render before connecting", async () => {
   const inspector = createDevelopmentInspector("ws://127.0.0.1:7358");
   const machine = setup({}).createMachine({ id: "root" });
   createActor(machine, { inspect: inspector.inspect });
   const committed = createActor(machine, { inspect: inspector.inspect });
   committed.start();
   inspector.start(committed);
+  inspector.stop();
+  inspector.start(committed);
+  expect(Socket.instances).toHaveLength(0);
+  await Promise.resolve();
+  expect(Socket.instances).toHaveLength(1);
   const socket = Socket.instances[0];
   socket.open();
   expect(socket.sent.filter((frame) => JSON.parse(frame).type === "@xstate.actor")).toHaveLength(1);

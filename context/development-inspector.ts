@@ -1,4 +1,4 @@
-import type { AnyActor, AnyStateMachine, InspectionEvent } from "xstate";
+import type { AnyActor, AnyStateMachine, AnyTransitionDefinition, InspectionEvent } from "xstate";
 import { createInspectionGuard } from "xstate-mcp/inspection-policy";
 import { createInspectionTransport } from "@/lib/inspection-transport";
 import { InspectionCommandSchema, InspectionDocumentEventSchema } from "@/types";
@@ -11,6 +11,19 @@ function describeAction(action: unknown): unknown {
   return { type: "inline action" };
 }
 
+function describeTransition(transition: AnyTransitionDefinition) {
+  return {
+    eventType: transition.eventType,
+    description: transition.description,
+    source: transition.source.id,
+    target: transition.target?.map((target) => target.id),
+    guard: transition.guard,
+    actions: transition.actions.map(describeAction),
+    reenter: transition.reenter,
+    delay: "delay" in transition ? transition.delay : undefined,
+  };
+}
+
 function machineDefinition(node: AnyStateMachine["root"]): unknown {
   return {
     id: node.id,
@@ -19,15 +32,9 @@ function machineDefinition(node: AnyStateMachine["root"]): unknown {
     description: node.description,
     initial: { target: node.initial.target.map((target) => target.id) },
     states: Object.fromEntries(Object.entries(node.states).map(([key, child]) => [key, machineDefinition(child)])),
-    on: Object.fromEntries([...node.transitions].map(([eventType, transitions]) => [eventType, transitions.map((transition) => ({
-      eventType,
-      description: transition.description,
-      source: transition.source.id,
-      target: transition.target?.map((target) => target.id),
-      guard: transition.guard,
-      actions: transition.actions.map(describeAction),
-      reenter: transition.reenter,
-    }))])),
+    on: Object.fromEntries([...node.transitions].map(([eventType, transitions]) => [eventType, transitions.map(describeTransition)])),
+    always: node.always?.map(describeTransition) ?? [],
+    after: node.after.map(describeTransition),
     entry: node.entry.map(describeAction),
     exit: node.exit.map(describeAction),
     invoke: node.invoke.map((invoke) => ({ id: invoke.id, src: typeof invoke.src === "string" ? invoke.src : "actor logic" })),
@@ -124,7 +131,9 @@ export function createDevelopmentInspector(url: string) {
         transport.forget(sessionId);
       }
       active = true;
-      transport.start();
+      queueMicrotask(() => {
+        if (active) transport.start();
+      });
     },
     stop() {
       active = false;

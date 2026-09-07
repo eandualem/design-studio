@@ -16,6 +16,7 @@ let client;
 let transport;
 let context;
 let page;
+let connections = [];
 
 function record(value) {
   fs.appendFileSync(path.join(output, "transcript.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), ...value })}\n`);
@@ -51,6 +52,15 @@ async function browser() {
   await context.route(/:7100\//, (route) => route.abort());
   await context.routeWebSocket(/:7100\//, (socket) => socket.close());
   await context.addInitScript(() => {
+    const sockets = [];
+    window.__inspectionSockets = sockets;
+    const NativeWebSocket = window.WebSocket;
+    window.WebSocket = class extends NativeWebSocket {
+      constructor(...args) {
+        super(...args);
+        if (this.url.includes(":7358")) sockets.push(this);
+      }
+    };
     const fixture = { remaining: 0, writes: 0, aborted: 0, committed: 0 };
     window.__saveRecoveryFixture = fixture;
     const original = IDBObjectStore.prototype.put;
@@ -69,6 +79,17 @@ async function browser() {
     };
   });
   page = context.pages()[0] ?? await context.newPage();
+  connections = [];
+  page.on("websocket", (socket) => {
+    const connection = { url: socket.url(), closed: false, frames: 0, containsDraft: false };
+    connections.push(connection);
+    socket.on("close", () => { connection.closed = true; });
+    socket.on("socketerror", () => { connection.closed = true; });
+    socket.on("framesent", ({ payload }) => {
+      connection.frames++;
+      if (socket.url().includes(":7358") && /Synthetic recovery|private-content|must survive/.test(String(payload))) connection.containsDraft = true;
+    });
+  });
   await page.goto(appUrl);
   return { browser: context.browser()?.version(), url: page.url(), fixture: "Real IndexedDB transaction.abort() injection; no runtime model calls" };
 }
@@ -93,6 +114,12 @@ async function run(command) {
       return { screenshot: filename };
     }
     case "reload": await page.reload(); return { reloaded: page.url() };
+    case "navigate": await page.goto(command.url ?? appUrl); return { url: page.url() };
+    case "connections": return {
+      observed: connections,
+      actual: await page.evaluate(() => window.__inspectionSockets?.map((socket) => ({ url: socket.url, readyState: socket.readyState })) ?? []),
+    };
+    case "unmount": await page.goto("about:blank"); return { unmounted: true };
     case "persisted": return page.evaluate(async () => {
       const request = indexedDB.open("design-studio");
       const database = await new Promise((resolve, reject) => {
@@ -125,7 +152,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     record({ request: command, result });
     const shown = command.show ? command.show.split(".").reduce((value, key) => value?.[key], result) : result;
     process.stdout.write(`${JSON.stringify({ result: shown })}\n`);
-    if (command.op === "quit") break;
+    if (command.op === "quit") process.exit(0);
   } catch (error) {
     const result = { error: String(error) };
     record({ request: command, result });
