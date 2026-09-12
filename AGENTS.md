@@ -35,7 +35,12 @@ Conventions worth knowing before you edit:
 - Components hold only view state (`useState` for a tab or a draft);
   anything that drives behaviour lives in a machine.
 
-The full conventions are in `.claude/skills/xstate-architecture/SKILL.md`.
+Before changing anything under `machines/` or `hooks/`, read the shared
+`xstate-architecture` skill. Backbone selects it through this agent's
+`xstate` tag and links it at launch into `.agents/skills/xstate-architecture/`
+(Codex) or `.claude/skills/xstate-architecture/` (Claude Code). Read its
+`SKILL.md` through the active runtime's skill catalog. If it is missing,
+resolve shared skill discovery before editing; do not create a local copy.
 
 ## The runtime boundary
 

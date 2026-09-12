@@ -9,3 +9,5 @@ out/
 .DS_Store
 tsconfig.tsbuildinfo
 next-env.d.ts
+.agents/skills/xstate-architecture
+.claude/skills/xstate-architecture
