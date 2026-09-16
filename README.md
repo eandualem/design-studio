@@ -67,15 +67,15 @@ the studio.
 **Terminal 1, the runtime:**
 
 ```bash
-uv tool install assistant-runtime      # or: pip install assistant-runtime
+uv tool install 'assistant-runtime[voice]'   # or: pip install 'assistant-runtime[voice]'
 
 # a provider key; the runtime also reads a .env in the directory you run it in
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# the assistant profile that makes the runtime a design partner. The path must
-# be absolute, and `echo "$PWD/profiles/design-studio.toml"` in this repository
-# prints it for you.
-export ASSISTANT__PROFILE=/absolute/path/to/design-studio/profiles/design-studio.toml
+# register this app's profile, the prompt artifacts that make the runtime a
+# design partner. The path must be absolute; `echo "$PWD/profiles/design-studio.toml"`
+# in this repository prints it. One runtime can register several apps' profiles.
+export ASSISTANT__PROFILES='["/absolute/path/to/design-studio/profiles/design-studio.toml"]'
 
 assistant-runtime serve --port 7100
 ```
@@ -106,14 +106,12 @@ too.
 
 ### Talking to it
 
-Voice needs the runtime with its voice extra and an `OPENAI_API_KEY` in
-the runtime's `.env` (GPT-Live bills connected time). Start the runtime
-yourself, as in Terminal 1 above, with the settings in
-`runtime/design-runtime.env` (no secrets in it; the comment at its top is
-the full command, which also points the runtime at this repository's Live
-prompt). The studio never starts or stops the runtime: `make dev` checks
-it is reachable and healthy and, if not, exits with one line saying to
-start it first.
+Voice needs `VOICE__ENABLED=true` and an `OPENAI_API_KEY` in the runtime's
+environment (GPT-Live bills connected time); the Live persona and the
+profile travel with each call, so nothing else is app-specific at startup.
+The studio never starts or stops the runtime: `make dev` checks it is
+reachable, healthy and has this profile registered and, if not, exits
+with one line saying what to do.
 
 Then press **Talk live** in the assistant panel, allow the microphone,
 and describe a system; the document takes shape while you talk. The

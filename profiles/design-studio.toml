@@ -1,5 +1,5 @@
 # Assistant profile for Design Studio. Run the runtime with
-#   ASSISTANT__PROFILE=/absolute/path/to/profiles/design-studio.toml
+#   ASSISTANT__PROFILES='["/absolute/path/to/profiles/design-studio.toml"]'
 # Shape: assistant_runtime.artifacts.load_profile_file.
 
 name = "design_studio"

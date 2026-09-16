@@ -16,9 +16,9 @@ apps are recognisably the same architecture with a different surface.
 | Does | conversation only: no tools, no delegation | one silent decision per utterance: a host action, or `hold` | performs the action, renders Mermaid, reports the result |
 | Says | what it heard and thinks; mentions a change only after the app confirms it | nothing: tool calls only, receipts stay internal | a quiet fact to Live after every action |
 
-The voice persona is `profiles/live-instructions.md`; the runtime reads it
-at startup (`VOICE__CONVERSATION_INSTRUCTIONS_FILE`), so a prompt change
-needs a runtime restart.
+The voice persona is `profiles/live-instructions.md`, sent as
+`instructions` when the call is created, with the app's `profile`; a
+prompt change takes effect on the next call.
 The controller's instructions are `profiles/design-controller.md`, sent
 as the message of every decision.
 
@@ -80,38 +80,31 @@ error, shown as a toast and in the controller line; the call continues.
 
 ## One runtime, started by you
 
-One assistant-runtime on 7100 serves text, voice and design decisions.
-You start it; the studio never starts, replaces or stops it (`make dev`
-only preflights `GET /health` and exits with one line if the runtime is
-unreachable, rejects the request, is unhealthy, or is not an
-assistant-runtime). `runtime/design-runtime.env` holds the settings it
-needs, with the launch command in its header: Codex-only `openai:`
-models with Sol as the primary, GPT-Live in conversation-only mode with
-the Live prompt, per-request design models. Keys stay in the runtime's
-own `.env`: `OPENAI_API_KEY` funds Live audio, `CEREBRAS_API_KEY` the
-fast candidates. Without a Codex login, drop the two Codex lines and name
-your provider's model. The README's two-terminal recipe is still the
-simple, text-only path.
+One assistant-runtime serves text, voice and design decisions, for this
+app and any other app registered with it. You start it (`make dev` in its
+checkout, or `assistant-runtime serve`) with this app's profile in
+`ASSISTANT__PROFILES`; the studio never starts, replaces or stops it.
+`make dev` here only preflights: `GET /health` and `GET
+/api/artifacts/profile`, exiting with one line if the runtime is
+unreachable, rejects the request, is unhealthy, is not an
+assistant-runtime, or does not have `design_studio` registered.
 
-The profile and the Live prompt are startup settings of the runtime, so a
-runtime started for Design Studio carries Design Studio's persona; a
-runtime shared with Avatar Studio carries whichever it was started with.
-Per-request profile selection and per-call Live instructions are landing
-in the runtime (`ASSISTANT__PROFILES`, a top-level `profile` on every
-request, `profile` + `instructions` on call creation); the app adopts them
-in #7 rather than writing global artifacts or settings to
-work around it.
-
-GPT-Live bills connected time, silence included ($0.05 per minute on
-September 13, 2026); decisions are billed by their model. End the call
-when finished.
+Everything app-specific travels with requests: the top-level `profile`
+on every chat message, steering message, continuation, decision and
+receipt (`lib/profile.ts`), `?profile=` on artifact routes, `profile` and
+`instructions` on voice creation, and `config` with the thinking budget,
+working memory off and the chosen model. Keys, `VOICE__ENABLED`, the
+Codex-only guard and ceilings stay the operator's startup settings. For
+the measurements below the runtime ran Codex-only with Sol as primary,
+`OPENAI_API_KEY` for Live audio and `CEREBRAS_API_KEY` for the fast
+candidates.
 
 ## Measurements
 
 ### Decision latency, offline (September 16, 2026)
 
 The controller's request as the app sends it, against the runtime on
-7100 (`8019c99`+, started from `runtime/design-runtime.env`), for a four-turn
+7100 (`8019c99`+), for a four-turn
 conversation ending in "put a queue between the API and the worker" on a
 one-diagram document. The action was not executed; each pending decision
 got a failed receipt. Script and raw rows: `.tmp/benchmark-design-models.ts`,

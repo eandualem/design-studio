@@ -1,9 +1,12 @@
-// Before the studio starts: is the assistant-runtime it talks to there?
-// The runtime is started separately (see runtime/design-runtime.env); the
-// studio never starts, replaces or stops it. Exit 0 when reachable and
-// healthy, 1 otherwise, with one line saying what to do.
+// Before the studio starts: is the assistant-runtime it talks to there, and
+// does it know this app's profile? The runtime is started separately (its
+// own `make dev`); the studio never starts, replaces or stops it. Exit 0
+// when reachable, healthy and registered, 1 otherwise, with one line saying
+// what to do.
 const url = (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://127.0.0.1:7100").replace(/\/$/, "");
-const hint = "Start it first (see runtime/design-runtime.env), then run make dev again.";
+const hint = "Start it first (make dev in the assistant-runtime checkout), then run make dev again.";
+const PROFILE = "design_studio";
+const profilePath = new URL("../profiles/design-studio.toml", import.meta.url).pathname;
 
 let response;
 try {
@@ -33,6 +36,21 @@ if (!llm) {
   process.exit(1);
 }
 const voice = health.components?.voice_service ?? {};
+let profiles;
+try {
+  const answer = await fetch(`${url}/api/artifacts/profile?profile=${PROFILE}`, { signal: AbortSignal.timeout(3000) });
+  profiles = answer.ok ? (await answer.json())?.available_profiles : answer.status;
+} catch {
+  profiles = undefined;
+}
+if (!Array.isArray(profiles) || !profiles.includes(PROFILE)) {
+  console.error(
+    `assistant-runtime at ${url} does not have the ${PROFILE} profile registered${
+      typeof profiles === "number" ? ` (HTTP ${profiles})` : Array.isArray(profiles) ? ` (has: ${profiles.join(", ") || "none"})` : ""
+    }. Add ${profilePath} to ASSISTANT__PROFILES in the runtime's .env and restart it.`,
+  );
+  process.exit(1);
+}
 const voiceState = voice.enabled ? (voice.configured ? "voice enabled" : "voice enabled, no key") : "voice disabled";
 console.log(`runtime ${url}: ${llm.primary_model ?? "model unknown"}, ${voiceState}`);
 if (!voice.enabled)

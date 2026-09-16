@@ -8,6 +8,7 @@ export const VoiceStatusSchema = z
     enabled: z.boolean(),
     configured: z.boolean(),
     conversation_mode_supported: z.boolean().optional(),
+    call_instructions_supported: z.boolean().optional(),
     active_calls: z.number().optional(),
   })
   .passthrough();

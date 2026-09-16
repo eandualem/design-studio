@@ -35,6 +35,7 @@ import {
   repairSession,
 } from "@/lib/runtime-api";
 import { HOST_ACTION_NAMES } from "@/lib/host-context";
+import { PROFILE, REQUEST_CONFIG } from "@/lib/profile";
 
 export type AssistantEvents =
   | { type: "app.session"; sessionId: string; hostContext: HostContext }
@@ -337,6 +338,8 @@ export const assistantMachine = setup({
         session_id: context.sessionId ?? "",
         content: event.text,
         message_type: "standard",
+        profile: PROFILE,
+        config: { ...REQUEST_CONFIG },
         ...(parentId ? { parent_id: parentId } : {}),
         ...(event.attachments && event.attachments.length > 0
           ? { attachments: event.attachments }
@@ -369,6 +372,7 @@ export const assistantMachine = setup({
         session_id: context.sessionId ?? "",
         content: event.text,
         message_type: "steering",
+        profile: PROFILE,
       };
       return { type: "socket.send" as const, body };
     }),
@@ -427,6 +431,8 @@ export const assistantMachine = setup({
         session_id: context.sessionId ?? "",
         content: "",
         message_type: "standard",
+        profile: PROFILE,
+        config: { ...REQUEST_CONFIG },
         tool_call_id: event.callId,
         tool_result: event.result,
         tool_outcome: event.outcome,

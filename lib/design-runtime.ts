@@ -8,6 +8,7 @@ import {
 } from "@/types";
 import instructions from "@/profiles/design-controller.md?raw";
 import { designModelConfig } from "./design-model";
+import { PROFILE, REQUEST_CONFIG } from "./profile";
 import { RUNTIME_URL } from "./runtime-url";
 import { boundConversation } from "./voice-transcript";
 
@@ -43,10 +44,11 @@ export async function decide(request: DecisionRequest, signal: AbortSignal): Pro
   const body = {
     id: crypto.randomUUID(),
     session_id: request.sessionId,
+    profile: PROFILE,
     output_mode: "host_tools",
     content: `${instructions}\n\n## Conversation\n\n${renderConversation(boundConversation(request.conversation))}`,
     host_context: request.hostContext,
-    ...designModelConfig(request.model),
+    config: { ...REQUEST_CONFIG, ...designModelConfig(request.model).config },
   };
   const result = DecisionResponseSchema.parse(await postChat(body, signal));
   if (result.error) throw new Error(result.error);
@@ -83,6 +85,7 @@ export async function sendReceipt(
       {
         id: crypto.randomUUID(),
         session_id: sessionId,
+        profile: PROFILE,
         content: "",
         output_mode: "host_tools",
         tool_call_id: result.callId,
