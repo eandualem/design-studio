@@ -1,13 +1,15 @@
 import { assign, sendTo, setup, type ActorRefFrom } from "xstate";
-import type { Attachment, HostContext, PendingHostAction, StudioDocument, Theme } from "@/types";
+import type { Attachment, DesignFact, HostContext, PendingHostAction, StudioDocument, Theme } from "@/types";
 import { applyTheme, writeLobbySession, writePanelPref, writeThemePref } from "@/lib/prefs";
 import { buildHostContext } from "@/lib/host-context";
 import { parseBlocks } from "@/lib/blocks";
 import { convertStateToString } from "@/lib/stateToStr";
 import { artifactsMachine } from "./artifactsMachine";
 import { assistantMachine } from "./assistantMachine";
+import { designControllerMachine, type Utterance } from "./designControllerMachine";
 import { documentMachine } from "./documentMachine";
 import { filesMachine } from "./filesMachine";
+import { voiceMachine } from "./voiceMachine";
 
 type Events =
   | { type: "user.togglePanel" }
@@ -15,7 +17,7 @@ type Events =
   | { type: "user.openDocument"; id: string }
   | { type: "user.closeDocument" }
   | { type: "sys.screenshot"; dataUri: string | null }
-  | { type: "sys.prefsLoaded"; theme: Theme; panelOpen: boolean; lobbySessionId: string }
+  | { type: "sys.prefsLoaded"; theme: Theme; panelOpen: boolean; lobbySessionId: string; designModel: string }
   | { type: "files.loaded"; documents: StudioDocument[] }
   | { type: "files.created"; document: StudioDocument }
   | { type: "files.deleted"; id: string }
@@ -28,13 +30,20 @@ type Events =
       outcome: "success" | "failed";
       result: unknown;
     }
-  | { type: "assistant.hostAction"; action: PendingHostAction };
+  | { type: "assistant.hostAction"; action: PendingHostAction }
+  | { type: "voice.started" }
+  | { type: "voice.utterance"; utterance: Utterance }
+  | { type: "voice.ended" }
+  | { type: "controller.hostAction"; action: PendingHostAction }
+  | { type: "controller.fact"; fact: DesignFact };
 
 interface AppContext {
   filesRef: ActorRefFrom<typeof filesMachine>;
   documentRef: ActorRefFrom<typeof documentMachine>;
   assistantRef: ActorRefFrom<typeof assistantMachine>;
   artifactsRef: ActorRefFrom<typeof artifactsMachine>;
+  voiceRef: ActorRefFrom<typeof voiceMachine>;
+  designRef: ActorRefFrom<typeof designControllerMachine>;
   theme: Theme;
   openId: string | null;
   requestedId: string | null;
@@ -76,6 +85,12 @@ export function gatherHostContext(
   });
 }
 
+/** The host context a design decision sees: the same as text chat, without the screenshot. */
+function decisionContext(context: AppContext): HostContext {
+  const { attachments: _attachments, ...rest } = gatherHostContext(context);
+  return rest;
+}
+
 function documentFromEvent(event: Events, context: AppContext): StudioDocument | null {
   switch (event.type) {
     case "files.created":
@@ -95,6 +110,8 @@ export const appMachine = setup({
     document: documentMachine,
     assistant: assistantMachine,
     artifacts: artifactsMachine,
+    voice: voiceMachine,
+    designController: designControllerMachine,
   },
   actions: {
     setTheme: assign({
@@ -210,6 +227,53 @@ export const appMachine = setup({
         };
       },
     ),
+    executeControllerAction: sendTo(
+      ({ context }) => context.documentRef,
+      ({ context, event }) => {
+        if (event.type !== "controller.hostAction") throw new Error("wrong event");
+        return {
+          type: "app.execute" as const,
+          callId: event.action.callId,
+          name: event.action.toolName,
+          args: event.action.arguments,
+          sessionId: context.assistantRef.getSnapshot().context.sessionId ?? "",
+        };
+      },
+    ),
+    forwardControllerResult: sendTo(
+      ({ context }) => context.designRef,
+      ({ context, event }) => {
+        if (event.type !== "document.actionResult") throw new Error("wrong event");
+        return {
+          type: "app.actionResult" as const,
+          result: { callId: event.callId, result: event.result, outcome: event.outcome },
+          hostContext: decisionContext(context),
+        };
+      },
+    ),
+    setDesignModel: sendTo(
+      ({ context }) => context.designRef,
+      ({ event }) => {
+        if (event.type !== "sys.prefsLoaded") throw new Error("wrong event");
+        return { type: "app.prefsLoaded" as const, model: event.designModel };
+      },
+    ),
+    startController: sendTo(({ context }) => context.designRef, { type: "app.callStarted" as const }),
+    stopController: sendTo(({ context }) => context.designRef, { type: "app.callEnded" as const }),
+    forwardUtterance: sendTo(
+      ({ context }) => context.designRef,
+      ({ context, event }) => {
+        if (event.type !== "voice.utterance") throw new Error("wrong event");
+        return { type: "app.utterance" as const, utterance: event.utterance, hostContext: decisionContext(context) };
+      },
+    ),
+    forwardFact: sendTo(
+      ({ context }) => context.voiceRef,
+      ({ event }) => {
+        if (event.type !== "controller.fact") throw new Error("wrong event");
+        return { type: "app.fact" as const, fact: event.fact };
+      },
+    ),
   },
   guards: {
     prefersPanelOpen: ({ event }) => event.type === "sys.prefsLoaded" && event.panelOpen,
@@ -226,6 +290,9 @@ export const appMachine = setup({
     adoptsLobby: ({ context, event }) =>
       documentFromEvent(event, context)?.sessionId === context.lobbySessionId,
     deletedOpen: ({ context, event }) => event.type === "files.deleted" && event.id === context.openId,
+    resultForController: ({ context, event }) =>
+      event.type === "document.actionResult" &&
+      event.callId === context.designRef.getSnapshot().context.current?.action?.callId,
   },
 }).createMachine({
   id: "app",
@@ -236,6 +303,8 @@ export const appMachine = setup({
     "- documentRef (documentMachine actor): the open document, its blocks and renders.",
     "- assistantRef (assistantMachine actor): the assistant panel and runtime session.",
     "- artifactsRef (artifactsMachine actor): the prompt artifacts (style guide) view.",
+    "- voiceRef (voiceMachine actor): the live voice call with GPT-Live.",
+    "- designRef (designControllerMachine actor): the design controller that turns utterances into host actions during a call, and the design model choice.",
     "- theme (Theme): light or dark; applied to <html> and persisted.",
     "- openId (string | null): id of the open document, mirrored to the URL by the routing adapter.",
     "- requestedId (string | null): a document id from the URL that arrived before the list loaded.",
@@ -247,6 +316,8 @@ export const appMachine = setup({
     documentRef: spawn("document", { id: "document" }),
     assistantRef: spawn("assistant", { id: "assistant" }),
     artifactsRef: spawn("artifacts", { id: "artifacts" }),
+    voiceRef: spawn("voice", { id: "voice" }),
+    designRef: spawn("designController", { id: "designController" }),
     theme: "dark",
     openId: null,
     requestedId: null,
@@ -321,9 +392,36 @@ export const appMachine = setup({
       description: "The runtime is waiting on a host action: hand it to the document machine with the calling session.",
       actions: "executeHostAction",
     },
-    "document.actionResult": {
-      description: "The document machine finished a host action: send the continuation with fresh host context.",
-      actions: "forwardActionResult",
+    "document.actionResult": [
+      {
+        description: "The document machine finished the design controller's action: hand the result back with fresh host context.",
+        guard: "resultForController",
+        actions: "forwardControllerResult",
+      },
+      {
+        description: "The document machine finished the assistant's action: send the continuation with fresh host context.",
+        actions: "forwardActionResult",
+      },
+    ],
+    "voice.started": {
+      description: "A live call connected: the design controller starts listening.",
+      actions: "startController",
+    },
+    "voice.utterance": {
+      description: "The person said something on the call: hand it to the controller with what is on screen now.",
+      actions: "forwardUtterance",
+    },
+    "voice.ended": {
+      description: "The call ended: the controller stops and drops queued speech.",
+      actions: "stopController",
+    },
+    "controller.hostAction": {
+      description: "The design controller decided on a host action: hand it to the document machine with the conversation's session, so a created document keeps the text chat.",
+      actions: "executeControllerAction",
+    },
+    "controller.fact": {
+      description: "A controller action ran: Live is told as quiet context.",
+      actions: "forwardFact",
     },
   },
   states: {
@@ -341,14 +439,14 @@ export const appMachine = setup({
             },
             "sys.prefsLoaded": [
               {
-                description: "Stored preferences say the panel is open; apply the stored theme and lobby session.",
+                description: "Stored preferences say the panel is open; apply the stored theme, lobby session and design model.",
                 guard: "prefersPanelOpen",
-                actions: ["setTheme", "setLobby", "applyThemeToDocument"],
+                actions: ["setTheme", "setLobby", "setDesignModel", "applyThemeToDocument"],
               },
               {
                 description: "Stored preferences say the panel is closed; close it and apply the theme and lobby session.",
                 target: "closed",
-                actions: ["setTheme", "setLobby", "applyThemeToDocument"],
+                actions: ["setTheme", "setLobby", "setDesignModel", "applyThemeToDocument"],
               },
             ],
           },
@@ -366,11 +464,11 @@ export const appMachine = setup({
                 description: "Stored preferences say the panel is open; open it and apply the theme and lobby session.",
                 guard: "prefersPanelOpen",
                 target: "open",
-                actions: ["setTheme", "setLobby", "applyThemeToDocument"],
+                actions: ["setTheme", "setLobby", "setDesignModel", "applyThemeToDocument"],
               },
               {
                 description: "Stored preferences say the panel is closed; apply the theme and lobby session.",
-                actions: ["setTheme", "setLobby", "applyThemeToDocument"],
+                actions: ["setTheme", "setLobby", "setDesignModel", "applyThemeToDocument"],
               },
             ],
           },
