@@ -466,4 +466,23 @@ describe("assistantMachine", () => {
     await tick();
     expect(h.actor.getSnapshot().value).toBe("idle");
   });
+
+  it("names the app's profile and request config on every turn, steering message and continuation", async () => {
+    const h = harness();
+    h.actor.send({ type: "app.session", sessionId: "s1", hostContext });
+    await tick();
+    h.actor.send({ type: "user.send", text: "hi", hostContext });
+    h.actor.send({ type: "user.steer", text: "shorter" });
+    h.server({
+      type: "stream.event",
+      event: { type: "final_response", messageId: "m", model: "m", usage: null, error: null, pendingToolCall: { callId: "c1", toolName: "delete_block", arguments: {}, queued: [] } },
+    });
+    h.server({ type: "stream.done" });
+    h.actor.send({ type: "host.actionResult", callId: "c1", result: { applied: true }, outcome: "success", hostContext });
+    const bodies = h.commands.filter((c): c is Extract<SocketCommand, { type: "socket.send" }> => c.type === "socket.send").map((c) => c.body);
+    expect(bodies.map((b) => b.message_type)).toEqual(["standard", "steering", "standard"]);
+    expect(bodies.every((b) => b.profile === "design_studio")).toBe(true);
+    expect(bodies[0].config).toMatchObject({ thinking_budget: 4000, enable_working_memory: false });
+    expect(bodies[2].config).toMatchObject({ thinking_budget: 4000, enable_working_memory: false });
+  });
 });

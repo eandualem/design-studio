@@ -12,6 +12,7 @@ import {
   type StoredMessage,
   type TreeNode,
 } from "@/types";
+import { PROFILE_QUERY } from "./profile";
 import { RUNTIME_URL } from "./runtime-url";
 
 async function getJson(path: string): Promise<unknown> {
@@ -48,27 +49,27 @@ export async function repairSession(sessionId: string): Promise<void> {
 }
 
 export async function fetchArtifactProfile(): Promise<ArtifactProfile> {
-  return ArtifactProfileSchema.parse(await getJson("/api/artifacts/profile"));
+  return ArtifactProfileSchema.parse(await getJson(`/api/artifacts/profile${PROFILE_QUERY}`));
 }
 
 export async function fetchArtifact(name: string): Promise<ArtifactVersion> {
-  return ArtifactVersionSchema.parse(await getJson(`/api/artifacts/${encodeURIComponent(name)}`));
+  return ArtifactVersionSchema.parse(await getJson(`/api/artifacts/${encodeURIComponent(name)}${PROFILE_QUERY}`));
 }
 
 export async function fetchArtifactHistory(name: string): Promise<ArtifactVersion[]> {
-  const body = await getJson(`/api/artifacts/${encodeURIComponent(name)}/history`);
+  const body = await getJson(`/api/artifacts/${encodeURIComponent(name)}/history${PROFILE_QUERY}`);
   return ArtifactVersionSchema.array().parse(body);
 }
 
 export async function approveArtifact(name: string, version: number): Promise<ArtifactMutation> {
   return ArtifactMutationSchema.parse(
-    await postJson(`/api/artifacts/${encodeURIComponent(name)}/approve/${version}`),
+    await postJson(`/api/artifacts/${encodeURIComponent(name)}/approve/${version}${PROFILE_QUERY}`),
   );
 }
 
 export async function rollbackArtifact(name: string, version: number): Promise<ArtifactMutation> {
   return ArtifactMutationSchema.parse(
-    await postJson(`/api/artifacts/${encodeURIComponent(name)}/rollback/${version}`),
+    await postJson(`/api/artifacts/${encodeURIComponent(name)}/rollback/${version}${PROFILE_QUERY}`),
   );
 }
 

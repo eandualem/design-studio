@@ -10,6 +10,8 @@ import {
   type VoiceOffer,
   type VoiceView,
 } from "@/types";
+import liveInstructions from "@/profiles/live-instructions.md?raw";
+import { PROFILE } from "./profile";
 import { RUNTIME_URL } from "./runtime-url";
 
 class VoiceHttpError extends Error {
@@ -95,9 +97,11 @@ function observeVoiceEvents(
 
 /**
  * One live call: the microphone, the WebRTC audio to GPT-Live, the runtime's
- * event stream and the data channel for quiet application facts. The voice
- * machine observes `subscribe` and drives `start`, `toggleMic`, `sendFact`
- * and `end`. No provider command is sent except the allowed appends.
+ * event stream and the data channel for quiet application facts. The call is
+ * created with this app's profile and its Live persona (profiles/
+ * live-instructions.md), so the runtime needs no startup prompt for it. The
+ * voice machine observes `subscribe` and drives `start`, `toggleMic`,
+ * `sendFact` and `end`. No provider command is sent except the allowed appends.
  */
 export class VoiceClient {
   private view = initialVoiceView();
@@ -151,6 +155,8 @@ export class VoiceClient {
       throw new Error("Live voice needs an OpenAI API key in the runtime's environment.");
     if (status.conversation_mode_supported !== true)
       throw new Error("This runtime does not support conversation-only voice calls.");
+    if (status.call_instructions_supported !== true)
+      throw new Error("This runtime does not take the Live persona per call; update assistant-runtime.");
     if (!navigator.mediaDevices?.getUserMedia || !globalThis.RTCPeerConnection)
       throw new Error("This browser cannot start live audio; use a current browser on localhost or HTTPS.");
 
@@ -221,6 +227,8 @@ export class VoiceClient {
       session_id: this.sessionId,
       sdp,
       mode: "conversation",
+      profile: PROFILE,
+      instructions: liveInstructions,
       history: this.history,
     }).then((body) => VoiceOfferSchema.parse(body));
     const offer = await this.allocation;

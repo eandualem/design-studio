@@ -24,6 +24,8 @@ export const ArtifactProfileSchema = z
     name: z.string(),
     durable: z.boolean(),
     artifacts: z.array(ArtifactDefinitionSchema),
+    /** Every profile registered at the runtime's startup (ASSISTANT__PROFILES). */
+    available_profiles: z.array(z.string()).optional(),
   })
   .passthrough();
 export type ArtifactProfile = z.infer<typeof ArtifactProfileSchema>;

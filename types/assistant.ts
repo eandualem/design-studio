@@ -146,6 +146,8 @@ export const MessageBodySchema = z.object({
   message_type: MessageTypeSchema.optional(),
   attachments: z.array(AttachmentSchema).optional(),
   host_context: HostContextSchema.optional(),
+  /** The registered profile name, sent on every turn, steering message and continuation. */
+  profile: z.string().optional(),
   config: z.record(z.unknown()).optional(),
   tool_call_id: z.string().optional(),
   tool_result: z.unknown().optional(),
