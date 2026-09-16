@@ -21,7 +21,8 @@ lib/          pure functions and clients, no React, no machine awareness
 ```
 
 Machines are `appMachine` (root, spawns the rest), `filesMachine`,
-`documentMachine`, `assistantMachine`, plus `artifactsMachine`.
+`documentMachine`, `assistantMachine`, `artifactsMachine`, and for live
+calls `voiceMachine` and `designControllerMachine` (`docs/voice.md`).
 
 Conventions worth knowing before you edit:
 
@@ -71,6 +72,8 @@ bun run lint
 bun run test     # Vitest: machines and lib
 bun run build
 bun run demo     # end-to-end in Chrome, needs both processes and a key
+make runtime     # the voice-enabled runtime, from runtime/design-runtime.env
+make check       # test, typecheck, lint, build
 ```
 
 bun is the package manager and script runner; there is no npm lockfile.

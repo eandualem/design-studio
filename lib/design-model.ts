@@ -15,9 +15,9 @@ export const DESIGN_MODEL_OPTIONS: readonly DesignModelOption[] = [
   { id: DESIGN_MODEL_DEFAULT, label: "Runtime default", note: "the runtime's primary model" },
   { id: "cerebras:qwen-3.8-27b", label: "Qwen 3.8 27B · Cerebras", note: "~1,850 t/s, needs a Cerebras key" },
   { id: "cerebras:gpt-oss-120b", label: "GPT-OSS 120B · Cerebras", note: "~1,700 t/s, needs a Cerebras key" },
-  { id: "anthropic:claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", note: "needs an Anthropic key" },
-  { id: "anthropic:claude-sonnet-5", label: "Claude Sonnet 5", note: "needs an Anthropic key" },
+  { id: "openai:gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Codex subscription" },
   { id: "openai:gpt-6-astra", label: "GPT-6 Astra", note: "~50 t/s, Codex subscription" },
+  { id: "anthropic:claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", note: "needs an Anthropic key with credit" },
 ];
 
 const MODEL_ID = /^[a-z][a-z0-9-]*:[a-z0-9][a-z0-9._/:-]*$/;
