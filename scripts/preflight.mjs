@@ -36,19 +36,34 @@ if (!llm) {
   process.exit(1);
 }
 const voice = health.components?.voice_service ?? {};
-let profiles;
+let profileAnswer;
 try {
-  const answer = await fetch(`${url}/api/artifacts/profile?profile=${PROFILE}`, { signal: AbortSignal.timeout(3000) });
-  profiles = answer.ok ? (await answer.json())?.available_profiles : answer.status;
-} catch {
-  profiles = undefined;
+  profileAnswer = await fetch(`${url}/api/artifacts/profile?profile=${PROFILE}`, { signal: AbortSignal.timeout(3000) });
+} catch (error) {
+  console.error(`assistant-runtime at ${url} answered /health but not /api/artifacts/profile (${error?.name ?? "request failed"}). ${hint}`);
+  process.exit(1);
 }
-if (!Array.isArray(profiles) || !profiles.includes(PROFILE)) {
-  console.error(
-    `assistant-runtime at ${url} does not have the ${PROFILE} profile registered${
-      typeof profiles === "number" ? ` (HTTP ${profiles})` : Array.isArray(profiles) ? ` (has: ${profiles.join(", ") || "none"})` : ""
-    }. Add ${profilePath} to ASSISTANT__PROFILES in the runtime's .env and restart it.`,
-  );
+if (profileAnswer.status === 401 || profileAnswer.status === 403) {
+  console.error(`assistant-runtime at ${url} rejected the profile request (HTTP ${profileAnswer.status}): check ACCESS__LOCAL_TOKEN.`);
+  process.exit(1);
+}
+const registration = `Add ${profilePath} to ASSISTANT__PROFILES in the runtime's .env and restart it.`;
+if (profileAnswer.status === 404) {
+  console.error(`assistant-runtime at ${url} does not have the ${PROFILE} profile registered. ${registration}`);
+  process.exit(1);
+}
+const profile = profileAnswer.ok ? await profileAnswer.json().catch(() => null) : null;
+if (!profile) {
+  console.error(`assistant-runtime at ${url} answered /api/artifacts/profile with HTTP ${profileAnswer.status}. ${hint}`);
+  process.exit(1);
+}
+const profiles = Array.isArray(profile.available_profiles) ? profile.available_profiles : null;
+if (!profiles) {
+  console.error(`assistant-runtime at ${url} predates profile registration (no available_profiles); update it. ${registration}`);
+  process.exit(1);
+}
+if (!profiles.includes(PROFILE)) {
+  console.error(`assistant-runtime at ${url} does not have the ${PROFILE} profile registered (has: ${profiles.join(", ") || "none"}). ${registration}`);
   process.exit(1);
 }
 const voiceState = voice.enabled ? (voice.configured ? "voice enabled" : "voice enabled, no key") : "voice disabled";
