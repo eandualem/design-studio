@@ -7,7 +7,7 @@ import type { UserMessageRecord } from "@/types";
 import { AssistantState, useAssistantContext } from "@/hooks/useAssistantContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useArtifactsContext } from "@/hooks/useArtifactsContext";
-import { useDesignControllerContext } from "@/hooks/useDesignControllerContext";
+import { useDesignControllerContext, useDesignControllerNotifications } from "@/hooks/useDesignControllerContext";
 import { useVoiceContext } from "@/hooks/useVoiceContext";
 import { StyleGuideView } from "./style-guide-view";
 import { AssistantHeader } from "./assistant-header";
@@ -24,6 +24,7 @@ export function AssistantPanel() {
   const artifacts = useArtifactsContext();
   const voice = useVoiceContext();
   const controller = useDesignControllerContext();
+  useDesignControllerNotifications();
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [view, setView] = useState<"chat" | "styleGuide">("chat");
   const toggleStyleGuide = useCallback(() => {

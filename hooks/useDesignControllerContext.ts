@@ -34,11 +34,6 @@ export const useDesignControllerContext = () => {
   const model = useSelector(designRef, (s) => s.context.model);
   const decisions = useSelector(designRef, (s) => s.context.decisions);
 
-  useEffect(() => {
-    const subscription = designRef.on("notification", (event) => toast.warning(event.message));
-    return () => subscription.unsubscribe();
-  }, [designRef]);
-
   const phase = useMemo(
     () => phaseMap[convertStateToString(stateValue)] ?? ControllerPhase.Idle,
     [stateValue],
@@ -60,6 +55,17 @@ export const useDesignControllerContext = () => {
     data: { model, decisions, lastDecision: decisions[decisions.length - 1] ?? null },
     actions: { select: { model: selectModel }, stop },
   };
+};
+
+/** Shows the controller's warnings as toasts; mount once (the assistant panel). */
+export const useDesignControllerNotifications = () => {
+  const {
+    data: { designRef },
+  } = useAppContext();
+  useEffect(() => {
+    const subscription = designRef.on("notification", (event) => toast.warning(event.message));
+    return () => subscription.unsubscribe();
+  }, [designRef]);
 };
 
 export type DesignControllerData = ReturnType<typeof useDesignControllerContext>["data"];
