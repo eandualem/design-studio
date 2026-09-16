@@ -96,9 +96,11 @@ simple, text-only path.
 The profile and the Live prompt are startup settings of the runtime, so a
 runtime started for Design Studio carries Design Studio's persona; a
 runtime shared with Avatar Studio carries whichever it was started with.
-Per-session profile and per-call Live instructions are runtime work,
-requested from assistant-runtime; the app does not write global artifacts
-or settings to work around it.
+Per-request profile selection and per-call Live instructions are landing
+in the runtime (`ASSISTANT__PROFILES`, a top-level `profile` on every
+request, `profile` + `instructions` on call creation); the app adopts them
+in # rather than writing global artifacts or settings to
+work around it.
 
 GPT-Live bills connected time, silence included ($0.05 per minute on
 September 13, 2026); decisions are billed by their model. End the call
