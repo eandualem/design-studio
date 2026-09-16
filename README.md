@@ -14,7 +14,7 @@ runtime owns the conversation, calls the model and streams the result.
 The application describes what is on screen and performs the actions the
 model asks for. Design Studio is a complete, deliberately small example
 of the application half of that arrangement: one screen, no accounts, no
-database, no server of its own, about 6,000 lines of TypeScript.
+database, no server of its own, about 8,500 lines of TypeScript.
 
 ![The studio: the document list, the Markdown and Mermaid preview, and the assistant panel](public/screenshot.png)
 
@@ -59,7 +59,8 @@ tick a box.
 
 You need [bun](https://bun.sh), a way to install a Python command line tool
 ([uv](https://docs.astral.sh/uv/) or pip), and an API key for one of the
-providers the runtime supports (Anthropic, OpenAI, Google or OpenRouter).
+providers the runtime supports (Anthropic, OpenAI, Google, OpenRouter or
+Cerebras).
 
 The runtime is a separate process. You install it once and run it beside
 the studio.
@@ -164,10 +165,10 @@ hold every transition and side effect, and `lib/` is pure functions.
 
 | Directory | What lives there |
 |---|---|
-| `machines/` | `appMachine` (root), `filesMachine`, `documentMachine`, `assistantMachine` |
+| `machines/` | `appMachine` (root), `filesMachine`, `documentMachine`, `assistantMachine`, `artifactsMachine`; `voiceMachine` and `designControllerMachine` for live calls |
 | `hooks/` | the bridge between machines and components |
 | `components/` | `assistant/`, `document/`, `layout/`, `ui/` |
-| `lib/` | block parsing and edits, host actions, stream folding, host context, the runtime client, IndexedDB, Mermaid |
+| `lib/` | block parsing and edits, host actions, stream folding, host context, the runtime client, IndexedDB, Mermaid, the voice and decision transports |
 | `types/` | Zod schemas for every wire shape |
 | `profiles/` | the assistant profile and its artifact texts |
 
