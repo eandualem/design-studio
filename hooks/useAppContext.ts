@@ -19,6 +19,8 @@ export const useAppContext = () => {
   const artifactsRef = AppMachineContext.useSelector(
     (s) => s.context.artifactsRef,
   );
+  const voiceRef = AppMachineContext.useSelector((s) => s.context.voiceRef);
+  const designRef = AppMachineContext.useSelector((s) => s.context.designRef);
 
   const togglePanel = useCallback(
     () => actorRef.send({ type: "user.togglePanel" }),
@@ -31,7 +33,7 @@ export const useAppContext = () => {
 
   return {
     state: { panelOpen, theme },
-    data: { filesRef, documentRef, assistantRef, artifactsRef },
+    data: { filesRef, documentRef, assistantRef, artifactsRef, voiceRef, designRef },
     actions: {
       toggle: { panel: togglePanel, theme: toggleTheme },
     },

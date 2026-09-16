@@ -7,10 +7,13 @@ import type { UserMessageRecord } from "@/types";
 import { AssistantState, useAssistantContext } from "@/hooks/useAssistantContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useArtifactsContext } from "@/hooks/useArtifactsContext";
+import { useDesignControllerContext } from "@/hooks/useDesignControllerContext";
+import { useVoiceContext } from "@/hooks/useVoiceContext";
 import { StyleGuideView } from "./style-guide-view";
 import { AssistantHeader } from "./assistant-header";
 import { MessageList } from "./message-list";
 import { ChatInput, type Draft } from "./chat-input";
+import { LivePanel } from "./live-panel";
 import { MotionProvider } from "./motion-provider";
 
 const EMPTY_DRAFT: Draft = { text: "", branch: null };
@@ -19,6 +22,8 @@ export function AssistantPanel() {
   const { state, data, actions } = useAssistantContext();
   const { actions: app } = useAppContext();
   const artifacts = useArtifactsContext();
+  const voice = useVoiceContext();
+  const controller = useDesignControllerContext();
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [view, setView] = useState<"chat" | "styleGuide">("chat");
   const toggleStyleGuide = useCallback(() => {
@@ -104,6 +109,24 @@ export function AssistantPanel() {
             canBranch={!state.isBusy}
             onTryVariant={tryVariant}
             onSelectVariant={actions.select.variant}
+          />
+        )}
+        {view === "chat" && (
+          <LivePanel
+            phase={voice.state.phase}
+            micMuted={voice.state.micMuted}
+            soundBlocked={voice.state.soundBlocked}
+            transcript={voice.data.transcript}
+            warning={voice.data.warning}
+            error={voice.data.error}
+            controllerPhase={controller.state.phase}
+            lastDecision={controller.data.lastDecision}
+            designModel={controller.data.model}
+            onStart={voice.actions.call.start}
+            onEnd={voice.actions.call.end}
+            onMute={voice.actions.call.mute}
+            onPlay={voice.actions.call.play}
+            onStopController={controller.actions.stop}
           />
         )}
         {view === "chat" && (
