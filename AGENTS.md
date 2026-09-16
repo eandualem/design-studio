@@ -72,7 +72,7 @@ bun run lint
 bun run test     # Vitest: machines and lib
 bun run build
 bun run demo     # end-to-end in Chrome, needs both processes and a key
-make runtime     # the voice-enabled runtime, from runtime/design-runtime.env
+make dev         # preflight the runtime you started, then bun run dev
 make check       # test, typecheck, lint, build
 ```
 

@@ -106,21 +106,19 @@ too.
 
 ### Talking to it
 
-Voice needs the runtime with its voice extra, an `OPENAI_API_KEY` in the
-runtime's `.env` (GPT-Live bills connected time), and a source checkout or
-installed package that `scripts/runtime-up.sh` can run. Then, instead of
-Terminal 1 above:
+Voice needs the runtime with its voice extra and an `OPENAI_API_KEY` in
+the runtime's `.env` (GPT-Live bills connected time). Start the runtime
+yourself, as in Terminal 1 above, with the settings in
+`runtime/design-runtime.env` (no secrets in it; the comment at its top is
+the full command, which also points the runtime at this repository's Live
+prompt). The studio never starts or stops the runtime: `make dev` checks
+it is reachable and healthy and, if not, exits with one line saying to
+start it first.
 
-```bash
-make runtime     # one runtime on 7100: text, voice and design decisions
-```
-
-It reads `runtime/design-runtime.env` (no secrets in it) and points the
-runtime at this repository's profile and Live prompt. With `bun run dev`
-in the other terminal, press **Talk live** in the assistant panel, allow
-the microphone, and describe a system; the document takes shape while you
-talk. The **Design model** control in the header picks which model makes
-the edits. `make check` runs the tests, typecheck, lint and build.
+Then press **Talk live** in the assistant panel, allow the microphone,
+and describe a system; the document takes shape while you talk. The
+**Design model** control in the header picks which model makes the edits.
+`make check` runs the tests, typecheck, lint and build.
 
 ## Using it
 

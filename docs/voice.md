@@ -17,8 +17,8 @@ apps are recognisably the same architecture with a different surface.
 | Says | what it heard and thinks; mentions a change only after the app confirms it | nothing: tool calls only, receipts stay internal | a quiet fact to Live after every action |
 
 The voice persona is `profiles/live-instructions.md`; the runtime reads it
-at startup (`VOICE__CONVERSATION_INSTRUCTIONS_FILE`, set by
-`scripts/runtime-up.sh`), so a prompt change needs `make runtime` again.
+at startup (`VOICE__CONVERSATION_INSTRUCTIONS_FILE`), so a prompt change
+needs a runtime restart.
 The controller's instructions are `profiles/design-controller.md`, sent
 as the message of every decision.
 
@@ -78,16 +78,27 @@ primary model decides, unless the deployment sets
 model the runtime cannot route fails that one decision with the runtime's
 error, shown as a toast and in the controller line; the call continues.
 
-## One runtime
+## One runtime, started by you
 
-`make runtime` (`scripts/runtime-up.sh`) starts one assistant-runtime on
-7100 from `runtime/design-runtime.env`: Codex-only `openai:` models with
-Sol as the primary, GPT-Live in conversation-only mode with the Live
-prompt, per-request design models. Keys stay in the runtime's own `.env`:
-`OPENAI_API_KEY` funds Live audio, `CEREBRAS_API_KEY` the fast candidates.
-Without a Codex login, drop the two Codex lines and name your provider's
-model. The README's two-terminal recipe is still the simple, text-only
-path.
+One assistant-runtime on 7100 serves text, voice and design decisions.
+You start it; the studio never starts, replaces or stops it (`make dev`
+only preflights `GET /health` and exits with one line if the runtime is
+unreachable, rejects the request, is unhealthy, or is not an
+assistant-runtime). `runtime/design-runtime.env` holds the settings it
+needs, with the launch command in its header: Codex-only `openai:`
+models with Sol as the primary, GPT-Live in conversation-only mode with
+the Live prompt, per-request design models. Keys stay in the runtime's
+own `.env`: `OPENAI_API_KEY` funds Live audio, `CEREBRAS_API_KEY` the
+fast candidates. Without a Codex login, drop the two Codex lines and name
+your provider's model. The README's two-terminal recipe is still the
+simple, text-only path.
+
+The profile and the Live prompt are startup settings of the runtime, so a
+runtime started for Design Studio carries Design Studio's persona; a
+runtime shared with Avatar Studio carries whichever it was started with.
+Per-session profile and per-call Live instructions are runtime work,
+requested from assistant-runtime; the app does not write global artifacts
+or settings to work around it.
 
 GPT-Live bills connected time, silence included ($0.05 per minute on
 September 13, 2026); decisions are billed by their model. End the call
@@ -98,7 +109,7 @@ when finished.
 ### Decision latency, offline (September 16, 2026)
 
 The controller's request as the app sends it, against the runtime on
-7100 (`8019c99`+, launched with `make runtime`), for a four-turn
+7100 (`8019c99`+, started from `runtime/design-runtime.env`), for a four-turn
 conversation ending in "put a queue between the API and the worker" on a
 one-diagram document. The action was not executed; each pending decision
 got a failed receipt. Script and raw rows: `.tmp/benchmark-design-models.ts`,
