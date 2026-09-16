@@ -156,7 +156,7 @@ export class VoiceClient {
     if (status.conversation_mode_supported !== true)
       throw new Error("This runtime does not support conversation-only voice calls.");
     if (status.call_instructions_supported !== true)
-      throw new Error("This runtime does not take the Live persona per call; update assistant-runtime.");
+      throw new Error("This runtime does not take the Live persona per call; it needs assistant-runtime 0.2.0 or later.");
     if (!navigator.mediaDevices?.getUserMedia || !globalThis.RTCPeerConnection)
       throw new Error("This browser cannot start live audio; use a current browser on localhost or HTTPS.");
 

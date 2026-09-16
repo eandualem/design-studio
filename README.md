@@ -67,7 +67,7 @@ the studio.
 **Terminal 1, the runtime:**
 
 ```bash
-uv tool install 'assistant-runtime[voice]'   # or: pip install 'assistant-runtime[voice]'
+uv tool install 'assistant-runtime[voice]==0.2.0'   # or: pip install 'assistant-runtime[voice]==0.2.0'
 
 # a provider key; the runtime also reads a .env in the directory you run it in
 export ANTHROPIC_API_KEY=sk-ant-...
