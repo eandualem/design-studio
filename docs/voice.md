@@ -99,7 +99,7 @@ runtime shared with Avatar Studio carries whichever it was started with.
 Per-request profile selection and per-call Live instructions are landing
 in the runtime (`ASSISTANT__PROFILES`, a top-level `profile` on every
 request, `profile` + `instructions` on call creation); the app adopts them
-in # rather than writing global artifacts or settings to
+in #7 rather than writing global artifacts or settings to
 work around it.
 
 GPT-Live bills connected time, silence included ($0.05 per minute on
