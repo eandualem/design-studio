@@ -9,3 +9,8 @@ export function doneOutput<T>(event: object): T {
 export function actorError(event: object): unknown {
   return (event as { error: unknown }).error;
 }
+
+/** A readable message for an actor error, whatever was thrown. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

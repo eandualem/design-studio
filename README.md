@@ -50,6 +50,10 @@ tick a box.
   session.
 - **Recovery.** Reload the page while the assistant is waiting for the app
   to perform an action and the reloaded page performs it and continues.
+- **Two model roles in parallel.** *Talk live* puts GPT-Live on the
+  conversation while a separate design controller turns what you say into
+  document edits through the same six actions, each decision on the model
+  you pick in the header. See [docs/voice.md](docs/voice.md).
 
 ## Running it
 
@@ -99,6 +103,22 @@ conversations live in the runtime's memory, so restarting it clears the
 chat and leaves the documents. Give the runtime a Postgres database
 (`assistant-runtime migrate` once, first) and the conversations survive
 too.
+
+### Talking to it
+
+Voice needs the runtime with its voice extra and an `OPENAI_API_KEY` in
+the runtime's `.env` (GPT-Live bills connected time). Start the runtime
+yourself, as in Terminal 1 above, with the settings in
+`runtime/design-runtime.env` (no secrets in it; the comment at its top is
+the full command, which also points the runtime at this repository's Live
+prompt). The studio never starts or stops the runtime: `make dev` checks
+it is reachable and healthy and, if not, exits with one line saying to
+start it first.
+
+Then press **Talk live** in the assistant panel, allow the microphone,
+and describe a system; the document takes shape while you talk. The
+**Design model** control in the header picks which model makes the edits.
+`make check` runs the tests, typecheck, lint and build.
 
 ## Using it
 

@@ -1,14 +1,18 @@
 import type { Theme } from "@/types";
+import { normalizeDesignModel } from "./design-model";
 
 const THEME_KEY = "design-studio:theme";
 const PANEL_KEY = "design-studio:panel-open";
 const LOBBY_KEY = "design-studio:lobby-session";
+const DESIGN_MODEL_KEY = "design-studio:design-model";
 
 export interface Prefs {
   theme: Theme;
   panelOpen: boolean;
   /** The runtime session used while no document is open. */
   lobbySessionId: string;
+  /** The design model for live-call decisions: `provider:model`, or empty for the runtime default. */
+  designModel: string;
 }
 
 export function readPrefs(): Prefs {
@@ -16,6 +20,7 @@ export function readPrefs(): Prefs {
     theme: "dark",
     panelOpen: true,
     lobbySessionId: crypto.randomUUID(),
+    designModel: "",
   };
   if (typeof window === "undefined") return fallback;
   try {
@@ -30,6 +35,7 @@ export function readPrefs(): Prefs {
       theme: theme === "light" ? "light" : "dark",
       panelOpen: panel === null ? true : panel === "true",
       lobbySessionId: lobby,
+      designModel: normalizeDesignModel(window.localStorage.getItem(DESIGN_MODEL_KEY)) ?? "",
     };
   } catch {
     return fallback;
@@ -55,6 +61,16 @@ export function writeThemePref(theme: Theme): void {
 
 export function writePanelPref(panelOpen: boolean): void {
   write(PANEL_KEY, String(panelOpen));
+}
+
+export function writeDesignModelPref(model: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (model) window.localStorage.setItem(DESIGN_MODEL_KEY, model);
+    else window.localStorage.removeItem(DESIGN_MODEL_KEY);
+  } catch {
+    /* storage unavailable: the choice lasts for this page */
+  }
 }
 
 export function applyTheme(theme: Theme): void {

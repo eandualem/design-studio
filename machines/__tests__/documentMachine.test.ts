@@ -247,4 +247,20 @@ describe("documentMachine", () => {
     expect(h.store.get("d2")?.name).toBe("renamed.md");
     expect(h.actor.getSnapshot().context.document?.id).toBe("d1");
   });
+
+  it("refuses a second action while one is being performed, and answers both", async () => {
+    const h = harness();
+    h.actor.send({ type: "app.open", document: DOC });
+    await settle();
+    h.execute("c1", "replace_block", { block_id: "b1", content: "```mermaid\nflowchart LR\n  A --> B\n```" });
+    h.execute("c2", "delete_block", { block_id: "b0" });
+    await settle(20);
+    expect(h.results().map((r) => [r.callId, r.outcome])).toEqual([
+      ["c2", "failed"],
+      ["c1", "success"],
+    ]);
+    expect(h.results()[0].result).toEqual({ error: "another action is still being performed; try again" });
+    expect(h.store.get("d1")?.content).toContain("flowchart LR");
+    expect(h.store.get("d1")?.content).toContain("# Payments");
+  });
 });

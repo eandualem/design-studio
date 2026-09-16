@@ -293,6 +293,15 @@ export const documentMachine = setup({
       outcome: "failed" as const,
       result: { error: String(actorError(event)) },
     })),
+    replyBusy: sendParent(({ event }) => {
+      if (event.type !== "app.execute") throw new Error("replyBusy: wrong event");
+      return {
+        type: "document.actionResult" as const,
+        callId: event.callId,
+        outcome: "failed" as const,
+        result: { error: "another action is still being performed; try again" },
+      };
+    }),
   },
   guards: {
     hasDocument: ({ context }) => context.document !== null,
@@ -334,11 +343,19 @@ export const documentMachine = setup({
   },
   initial: "closed",
   on: {
-    "app.execute": {
-      description: "The assistant called a host action. Records it and decides how to run it.",
-      target: ".applying",
-      actions: "setPending",
-    },
+    "app.execute": [
+      {
+        description:
+          "A host action arrived while another is still being performed (the text assistant and the design controller can both call them): refused as failed so the caller can retry.",
+        guard: "hasPending",
+        actions: "replyBusy",
+      },
+      {
+        description: "The assistant or the design controller called a host action. Records it and decides how to run it.",
+        target: ".applying",
+        actions: "setPending",
+      },
+    ],
   },
   states: {
     closed: {

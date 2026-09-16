@@ -11,6 +11,7 @@ import { TopBar } from "@/components/layout/top-bar";
 import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useDocumentContext } from "@/hooks/useDocumentContext";
+import { useDesignControllerContext } from "@/hooks/useDesignControllerContext";
 
 const emptySubscribe = () => () => {};
 
@@ -18,6 +19,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const { state, actions } = useAppContext();
   const { data: doc } = useDocumentContext();
+  const controller = useDesignControllerContext();
 
   return (
     <div className="fixed inset-0 flex overflow-hidden">
@@ -34,6 +36,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
               title={doc.document?.name ?? null}
               theme={state.theme}
               panelOpen={state.panelOpen}
+              designModel={controller.data.model}
+              onSelectDesignModel={controller.actions.select.model}
               onToggleTheme={actions.toggle.theme}
               onTogglePanel={actions.toggle.panel}
             />
