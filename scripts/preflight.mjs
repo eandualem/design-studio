@@ -59,7 +59,7 @@ if (!profile) {
 }
 const profiles = Array.isArray(profile.available_profiles) ? profile.available_profiles : null;
 if (!profiles) {
-  console.error(`assistant-runtime at ${url} predates profile registration (no available_profiles); update it. ${registration}`);
+  console.error(`assistant-runtime at ${url} predates profile registration (no available_profiles); it needs assistant-runtime 0.2.0 or later. ${registration}`);
   process.exit(1);
 }
 if (!profiles.includes(PROFILE)) {
