@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 .tmp/
+.backbone/memory/
 .env
 .env.*
 !.env.example
