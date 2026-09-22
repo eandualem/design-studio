@@ -9,6 +9,14 @@ working on the code.
 It is deliberately small, and staying small is a feature. Before adding
 something, check it earns its place in a demonstration of the runtime.
 
+## Local continuity
+
+At startup, read `.backbone/memory/HANDOFF.md` and
+`.backbone/memory/INDEX.md` when present. Update `HANDOFF.md` at handoff;
+keep useful reference notes under `.backbone/memory/notes/`, linked from
+`INDEX.md`. In linked worktrees, use the primary checkout's memory directory.
+The shared project-context policy governs this local continuity.
+
 ## Architecture
 
 Four layers, and nothing reaches past its neighbour:
