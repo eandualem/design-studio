@@ -50,9 +50,13 @@ guide under the name `design_studio`. Its path must be absolute; the command
 above expands it from the checkout. Keep this terminal running. The runtime
 also reads a `.env` file in the directory from which it starts.
 
-This recipe pins assistant-runtime 0.2.0, the minimum version for the
-profile registration and per-call voice instructions used here. The runtime's
-own setup and configuration references ship with the package:
+This recipe pins assistant-runtime 0.2.0, the version the studio is tested
+with. It is also the minimum: 0.2.0 added the profile registration and
+per-call voice instructions used here. Version 0.3.0 changes none of the
+contracts the studio uses (it only adds a decisions endpoint) and passes the
+studio's startup check, but it has not been through a full edit or voice
+session. The runtime's own setup and configuration references ship with the
+package:
 
 ```bash
 assistant-runtime docs
