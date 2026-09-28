@@ -10,6 +10,6 @@ describe("profile", () => {
   });
 
   it("carries the former startup defaults per request", () => {
-    expect(REQUEST_CONFIG).toMatchObject({ thinking_budget: 4000, enable_working_memory: false });
+    expect(REQUEST_CONFIG).toMatchObject({ thinking_budget: 4000, enable_working_memory: false, temperature: 0.1 });
   });
 });

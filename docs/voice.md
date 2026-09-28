@@ -102,9 +102,10 @@ Everything app-specific travels with requests: the top-level `profile`
 on every chat message, steering message, continuation, decision and
 receipt (`lib/profile.ts`), `?profile=` on artifact routes, `profile` and
 `instructions` on voice creation. Text and decision requests also carry
-`config` with the thinking budget, working memory off and model overrides.
-Provider credentials,
-`VOICE__ENABLED` and model-access restrictions remain runtime settings.
+`config` with the thinking budget, temperature 0.1, working memory off and
+model overrides. Provider credentials, `VOICE__ENABLED`, the built-in tool
+groups, the thinking-budget ceiling, compaction and model-access
+restrictions remain runtime settings.
 See `assistant-runtime docs configuration` and `assistant-runtime docs voice`.
 
 ## Measurements
