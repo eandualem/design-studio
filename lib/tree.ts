@@ -42,11 +42,6 @@ export function variantsFor(messages: MessageRecord[], tree: TreeNode[]): Record
   return result;
 }
 
-/** Add a node the app just created, so the tree is current without a refetch. */
-export function addNode(tree: TreeNode[], node: TreeNode): TreeNode[] {
-  return tree.some((n) => n.id === node.id) ? tree : [...tree, node];
-}
-
 /** The displayed path cut back to a message, for branching from it. */
 export function truncateTo(messages: MessageRecord[], parentId: string | null): MessageRecord[] {
   if (parentId === null) return [];

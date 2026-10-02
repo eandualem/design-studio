@@ -42,10 +42,11 @@ bun install
 In that same terminal, from the `design-studio` directory:
 
 ```bash
-uv tool install 'assistant-runtime[voice] @ git+https://github.com/eandualem/assistant-runtime@33331118256ea44d420d6a12a77b155e89240f0b'
+uv tool install 'assistant-runtime[voice] @ git+https://github.com/eandualem/assistant-runtime@3f3449f000cf544afcd3522600791e347db3b030'
 export ANTHROPIC_API_KEY='replace-with-your-key'
 export ASSISTANT__PROFILES="[\"$PWD/profiles/design-studio.toml\"]"
 export TOOLS__BUILTIN_TOOLS='["screen", "artifacts"]'
+export TOOLS__PROVIDER_CAPABILITIES='[]'
 export ASSISTANT__THINKING_BUDGET=4000
 export HISTORY__COMPACTION_ENABLED=true
 assistant-runtime serve --port 7100
@@ -56,12 +57,15 @@ guide under the name `design_studio`. Its path must be absolute; the command
 above expands it from the checkout. Keep this terminal running. The runtime
 also reads a `.env` file in the directory from which it starts.
 
-The runtime turns nothing on by default, so the last three exports enable
-what the studio uses:
+The recipe enables the runtime capabilities the studio uses:
 - `screen` lets the assistant look at the preview.
 - `artifacts` lets it propose style-guide changes.
 - The thinking budget is the ceiling for the budget the studio sends.
 - Compaction summarises long conversations.
+
+Provider integration tools are disabled for this demo, even if their
+credentials are present in your environment. Background tasks, persistent
+agents and heartbeat stay off by default.
 
 The recipe installs the runtime from a fixed commit, because the
 studio relies on runtime changes that are not in a release yet. The

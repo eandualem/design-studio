@@ -10,7 +10,7 @@ import { designControllerMachine } from "@/machines/designControllerMachine";
 import { voiceMachine } from "@/machines/voiceMachine";
 import type { RenderCache } from "@/lib/document-actions";
 import { ensureMarkdownName } from "@/lib/files-store";
-import type { Decision, DecisionRequest, DesignFact, HostActionResult, MessageRecord, StudioDocument, TreeNode, VoiceView } from "@/types";
+import type { Decision, DecisionRequest, DesignFact, HostActionResult, MessageRecord, PendingHostAction, StudioDocument, TreeNode, VoiceView } from "@/types";
 import { initialVoiceView } from "@/types";
 import type { VoiceClient } from "@/lib/voice-client";
 
@@ -37,7 +37,7 @@ function harness() {
     sendBack({ type: "socket.status", status: "connected" });
   });
   const historyLoader = fromPromise<
-    { messages: MessageRecord[] | null; tree: TreeNode[]; pending: { toolCallId: string; toolName: string; arguments?: Record<string, unknown> | null } | null },
+    { messages: MessageRecord[] | null; tree: TreeNode[]; pending: PendingHostAction | null },
     { sessionId: string; leafId: string | null }
   >(async () => ({ messages: [], tree: [], pending: null }));
   const treeLoader = fromPromise<TreeNode[], { sessionId: string }>(async () => []);

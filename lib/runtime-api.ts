@@ -43,11 +43,6 @@ async function postJson(path: string, body?: unknown): Promise<unknown> {
   return res.json();
 }
 
-/** `POST /api/sessions/{id}/repair`: resolve a pending host action the app cannot answer. */
-export async function repairSession(sessionId: string): Promise<void> {
-  await postJson(`/api/sessions/${encodeURIComponent(sessionId)}/repair`);
-}
-
 export async function fetchArtifactProfile(): Promise<ArtifactProfile> {
   return ArtifactProfileSchema.parse(await getJson(`/api/artifacts/profile${PROFILE_QUERY}`));
 }

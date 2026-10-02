@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AlertCircle, Loader2, Wrench } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { UserMessageRecord } from "@/types";
 import { AssistantState, useAssistantContext } from "@/hooks/useAssistantContext";
@@ -61,22 +61,6 @@ export function AssistantPanel() {
         onToggleStyleGuide={toggleStyleGuide}
         onClose={app.toggle.panel}
       />
-      {(state.assistantState === AssistantState.NeedsRepair ||
-        state.assistantState === AssistantState.Repairing) && (
-        <div className="mx-3 mt-2 flex items-center gap-2 rounded-md border border-one-yellow/40 bg-one-yellow/10 px-3 py-2 text-xs text-one-yellow">
-          <Wrench className="h-3.5 w-3.5 shrink-0" />
-          <span className="min-w-0 flex-1">
-            The runtime is waiting on an action this studio cannot reconstruct. Repair the session to continue.
-          </span>
-          <button
-            onClick={actions.session.repair}
-            disabled={state.assistantState === AssistantState.Repairing}
-            className="rounded-md bg-one-yellow/20 px-2 py-0.5 hover:opacity-80 disabled:opacity-50"
-          >
-            {state.assistantState === AssistantState.Repairing ? "Repairing…" : "Repair"}
-          </button>
-        </div>
-      )}
       {view === "styleGuide" && (
         <StyleGuideView
           data={artifacts.data}

@@ -19,8 +19,6 @@ export enum AssistantState {
   Idle = "Idle",
   Loading = "Loading",
   Syncing = "Syncing",
-  NeedsRepair = "NeedsRepair",
-  Repairing = "Repairing",
   Streaming = "Streaming",
   Cancelling = "Cancelling",
   AwaitingHostAction = "AwaitingHostAction",
@@ -29,8 +27,6 @@ export enum AssistantState {
 const stateMap: Record<string, AssistantState> = {
   idle: AssistantState.Idle,
   syncingTree: AssistantState.Syncing,
-  needsRepair: AssistantState.NeedsRepair,
-  repairing: AssistantState.Repairing,
   loadingHistory: AssistantState.Loading,
   "streaming.live": AssistantState.Streaming,
   "streaming.cancelling": AssistantState.Cancelling,
@@ -93,18 +89,11 @@ export const useAssistantContext = () => {
     () => assistantRef.send({ type: "user.cancel" }),
     [assistantRef],
   );
-  const repair = useCallback(
-    () => assistantRef.send({ type: "user.repair" }),
-    [assistantRef],
-  );
-
   return {
     state: {
       assistantState,
       isBusy:
         assistantState === AssistantState.Syncing ||
-        assistantState === AssistantState.NeedsRepair ||
-        assistantState === AssistantState.Repairing ||
         assistantState === AssistantState.Streaming ||
         assistantState === AssistantState.Cancelling ||
         assistantState === AssistantState.AwaitingHostAction,
@@ -120,7 +109,7 @@ export const useAssistantContext = () => {
       sessionId,
       documentName,
     },
-    actions: { chat: { send, steer, cancel }, select: { variant: selectVariant }, session: { repair } },
+    actions: { chat: { send, steer, cancel }, select: { variant: selectVariant } },
   };
 };
 

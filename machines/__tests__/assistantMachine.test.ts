@@ -5,7 +5,7 @@ import {
   type AssistantEvents,
   type SocketCommand,
 } from "@/machines/assistantMachine";
-import type { HostContext, MessageRecord, TreeNode } from "@/types";
+import type { HostContext, MessageRecord, PendingHostAction, TreeNode } from "@/types";
 
 const hostContext: HostContext = {
   version: 1,
@@ -24,7 +24,7 @@ function harness(history: MessageRecord[] = [], tree: TreeNode[] = []) {
     sendBack({ type: "socket.status", status: "connected" });
   });
   const historyLoader = fromPromise<
-    { messages: MessageRecord[] | null; tree: TreeNode[]; pending: { toolCallId: string; toolName: string } | null },
+    { messages: MessageRecord[] | null; tree: TreeNode[]; pending: PendingHostAction | null },
     { sessionId: string; leafId: string | null }
   >(async ({ input }) => {
     loads.push(input.leafId);
@@ -33,19 +33,14 @@ function harness(history: MessageRecord[] = [], tree: TreeNode[] = []) {
   });
   const treeRef = { current: tree };
   const pendingRef = {
-    current: null as { toolCallId: string; toolName: string; arguments?: Record<string, unknown> | null } | null,
+    current: null as PendingHostAction | null,
   };
-  const repairs: string[] = [];
-  const repairer = fromPromise<void, { sessionId: string }>(async ({ input }) => {
-    repairs.push(input.sessionId);
-    pendingRef.current = null;
-  });
   const treeLoader = fromPromise<TreeNode[], { sessionId: string }>(async () => treeRef.current);
   const emitted: unknown[] = [];
   const parent = createActor(
     setup({
       actors: {
-        assistant: assistantMachine.provide({ actors: { socket, historyLoader, treeLoader, repairer } }),
+        assistant: assistantMachine.provide({ actors: { socket, historyLoader, treeLoader } }),
       },
     }).createMachine({
       invoke: { id: "assistant", src: "assistant", systemId: "assistant" },
@@ -62,10 +57,9 @@ function harness(history: MessageRecord[] = [], tree: TreeNode[] = []) {
     setTree: (nodes: TreeNode[]) => {
       treeRef.current = nodes;
     },
-    setPending: (p: { toolCallId: string; toolName: string; arguments?: Record<string, unknown> | null } | null) => {
+    setPending: (p: PendingHostAction | null) => {
       pendingRef.current = p;
     },
-    repairs,
     server: (event: AssistantEvents) => push?.(event),
     lastAssistant() {
       const msgs = actor.getSnapshot().context.messages;
@@ -394,7 +388,7 @@ describe("assistantMachine", () => {
     expect(h.lastAssistant().segments[0]).toMatchObject({ text: "Colour" });
   });
 
-  it("recovers a pending host action from the stored transcript after a reload", async () => {
+  it("recovers a pending host action from session details after a reload and continues", async () => {
     const h = harness([
       { kind: "user", id: "u1", parentId: null, text: "make a doc", messageType: "standard", timestamp: "t" },
       {
@@ -415,13 +409,13 @@ describe("assistantMachine", () => {
         error: null,
       },
     ]);
-    h.setPending({ toolCallId: "c9", toolName: "create_document" });
+    h.setPending({ callId: "c9", toolName: "create_document", arguments: { name: "x.md", content: "# x" }, queued: ["c10"] });
     h.actor.send({ type: "app.session", sessionId: "s1", hostContext });
     await tick();
     expect(h.actor.getSnapshot().value).toBe("awaitingHostAction");
     expect(h.emitted[0]).toMatchObject({
       type: "assistant.hostAction",
-      action: { callId: "c9", toolName: "create_document", arguments: { name: "x.md", content: "# x" } },
+      action: { callId: "c9", toolName: "create_document", arguments: { name: "x.md", content: "# x" }, queued: ["c10"] },
     });
     h.actor.send({ type: "host.actionResult", callId: "c9", result: { document_id: "d" }, outcome: "success", hostContext });
     const cont = h.commands[h.commands.length - 1];
@@ -429,31 +423,15 @@ describe("assistantMachine", () => {
     expect(cont.body).toMatchObject({ tool_call_id: "c9", tool_outcome: "success" });
   });
 
-  it("uses pending_action.arguments from the session detail when the runtime sends them", async () => {
+  it("recovers from session details even without a matching call in the displayed transcript", async () => {
     const h = harness([
       { kind: "user", id: "u1", parentId: null, text: "x", messageType: "standard", timestamp: "t" } as MessageRecord,
     ]);
-    h.setPending({ toolCallId: "c1", toolName: "delete_block", arguments: { block_id: "b2" } });
+    h.setPending({ callId: "c1", toolName: "delete_block", arguments: { block_id: "b2" }, queued: [] });
     h.actor.send({ type: "app.session", sessionId: "s1", hostContext });
     await tick();
     expect(h.actor.getSnapshot().value).toBe("awaitingHostAction");
     expect(h.emitted[0]).toMatchObject({ action: { callId: "c1", toolName: "delete_block", arguments: { block_id: "b2" } } });
-  });
-
-  it("offers a repair when the pending action's call is not in the transcript", async () => {
-    const h = harness([
-      { kind: "user", id: "u1", parentId: null, text: "x", messageType: "standard", timestamp: "t" },
-    ]);
-    h.setPending({ toolCallId: "gone", toolName: "replace_block" });
-    h.actor.send({ type: "app.session", sessionId: "s1", hostContext });
-    await tick();
-    expect(h.actor.getSnapshot().value).toBe("needsRepair");
-    h.actor.send({ type: "user.repair" });
-    expect(h.actor.getSnapshot().value).toBe("repairing");
-    await tick();
-    await tick();
-    expect(h.repairs).toEqual(["s1"]);
-    expect(h.actor.getSnapshot().value).toBe("idle");
   });
 
   it("reloads history when the transport reconnects mid-turn", async () => {
