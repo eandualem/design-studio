@@ -77,11 +77,6 @@ function summarize(kind: Block["kind"], lines: string[]): string {
   return text.length > SUMMARY_LIMIT ? `${text.slice(0, SUMMARY_LIMIT - 1)}…` : text;
 }
 
-/** Join blocks back into Markdown. */
-export function serializeBlocks(blocks: Block[]): string {
-  return blocks.map((b) => b.source).join("\n\n") + (blocks.length ? "\n" : "");
-}
-
 export type BlockEdit =
   | { type: "replace"; blockId: string; content: string }
   | { type: "insert"; afterBlockId: string; content: string }
@@ -126,9 +121,4 @@ export function applyEdit(
   }
   const joined = sources.filter((s) => s.trim() !== "").join("\n\n");
   return { ok: true, content: joined ? `${joined}\n` : "" };
-}
-
-/** Index of the block whose id matches, or -1. */
-export function blockIndex(blocks: Block[], id: string): number {
-  return blocks.findIndex((b) => b.id === id);
 }

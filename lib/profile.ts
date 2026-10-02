@@ -9,13 +9,16 @@ export const PROFILE = "design_studio";
 
 /**
  * The per-request defaults that used to be startup settings: the thinking
- * budget and working memory off. The text model stays the runtime's primary
- * unless NEXT_PUBLIC_ASSISTANT_MODEL names one; design decisions choose
- * their own model (lib/design-model.ts).
+ * budget, working memory off and a low temperature (the runtime omits it
+ * where a model rejects one). The thinking budget can only lower the
+ * runtime's ASSISTANT__THINKING_BUDGET, so the operator must set one. The
+ * text model stays the runtime's primary unless NEXT_PUBLIC_ASSISTANT_MODEL
+ * names one; design decisions choose their own model (lib/design-model.ts).
  */
 export const REQUEST_CONFIG: Readonly<Record<string, unknown>> = {
   thinking_budget: 4000,
   enable_working_memory: false,
+  temperature: 0.1,
   ...(process.env.NEXT_PUBLIC_ASSISTANT_MODEL ? { default_model: process.env.NEXT_PUBLIC_ASSISTANT_MODEL } : {}),
 };
 

@@ -4,7 +4,7 @@
 // when reachable, healthy and registered, 1 otherwise, with one line saying
 // what to do.
 const url = (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://127.0.0.1:7100").replace(/\/$/, "");
-const hint = "Start it first (make dev in the assistant-runtime checkout), then run make dev again.";
+const hint = "Start the runtime with the README setup recipe, then run make dev again.";
 const PROFILE = "design_studio";
 const profilePath = new URL("../profiles/design-studio.toml", import.meta.url).pathname;
 
@@ -59,7 +59,7 @@ if (!profile) {
 }
 const profiles = Array.isArray(profile.available_profiles) ? profile.available_profiles : null;
 if (!profiles) {
-  console.error(`assistant-runtime at ${url} predates profile registration (no available_profiles); it needs assistant-runtime 0.2.0 or later. ${registration}`);
+  console.error(`assistant-runtime at ${url} predates profile registration (no available_profiles); install the runtime revision from the README. ${registration}`);
   process.exit(1);
 }
 if (!profiles.includes(PROFILE)) {

@@ -24,7 +24,10 @@ separate local processes.
 You need Git, [Bun](https://bun.sh), [uv](https://docs.astral.sh/uv/)
 for installing the Python runtime (Python 3.12 or newer), and `make`.
 The example below uses an Anthropic API key with credit for text chat.
-Other providers are supported; see `assistant-runtime docs configuration` after installation.
+Other providers are supported: set `LLM__PRIMARY_MODEL` and
+`LLM__SUMMARIZATION_MODEL` to models of a provider you have a key for, since
+the runtime does not substitute another provider. See
+`assistant-runtime docs configuration` after installation.
 
 ### 1. Get the app
 
@@ -39,9 +42,13 @@ bun install
 In that same terminal, from the `design-studio` directory:
 
 ```bash
-uv tool install 'assistant-runtime[voice]==0.2.0'
+uv tool install 'assistant-runtime[voice] @ git+https://github.com/eandualem/assistant-runtime@3f3449f000cf544afcd3522600791e347db3b030'
 export ANTHROPIC_API_KEY='replace-with-your-key'
 export ASSISTANT__PROFILES="[\"$PWD/profiles/design-studio.toml\"]"
+export TOOLS__BUILTIN_TOOLS='["screen", "artifacts"]'
+export TOOLS__PROVIDER_CAPABILITIES='[]'
+export ASSISTANT__THINKING_BUDGET=4000
+export HISTORY__COMPACTION_ENABLED=true
 assistant-runtime serve --port 7100
 ```
 
@@ -50,9 +57,19 @@ guide under the name `design_studio`. Its path must be absolute; the command
 above expands it from the checkout. Keep this terminal running. The runtime
 also reads a `.env` file in the directory from which it starts.
 
-This recipe pins assistant-runtime 0.2.0, the minimum version for the
-profile registration and per-call voice instructions used here. The runtime's
-own setup and configuration references ship with the package:
+The recipe enables the runtime capabilities the studio uses:
+- `screen` lets the assistant look at the preview.
+- `artifacts` lets it propose style-guide changes.
+- The thinking budget is the ceiling for the budget the studio sends.
+- Compaction summarises long conversations.
+
+Provider integration tools are disabled for this demo, even if their
+credentials are present in your environment. Background tasks, persistent
+agents and heartbeat stay off by default.
+
+The recipe installs the runtime from a fixed commit, because the
+studio relies on runtime changes that are not in a release yet. The
+runtime's own setup and configuration references ship with the package:
 
 ```bash
 assistant-runtime docs

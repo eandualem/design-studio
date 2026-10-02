@@ -166,25 +166,13 @@ export type CancelBody = z.infer<typeof CancelBodySchema>;
 
 // ── HTTP shapes (runtime docs/api.md, sessions) ─────────────────────
 
-export const SessionSummarySchema = z
-  .object({
-    session_id: z.string(),
-    owner_id: z.string().nullish(),
-    title: z.string().nullish(),
-    turn_number: z.number().nullish(),
-    message_count: z.number().nullish(),
-    created_at: z.string().nullish(),
-  })
-  .passthrough();
-export type SessionSummary = z.infer<typeof SessionSummarySchema>;
-
 export const PendingActionSchema = z
   .object({
     tool_call_id: z.string(),
     tool_name: z.string(),
     assistant_message_id: z.string().nullish(),
-    arguments: z.union([z.record(z.unknown()), z.string(), z.null()]).optional(),
-    queued: z.array(z.string()).optional(),
+    arguments: z.record(z.unknown()),
+    queued: z.array(z.string()).default([]),
   })
   .passthrough();
 

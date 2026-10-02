@@ -32,7 +32,6 @@ import {
   fetchSessionMessages,
   fetchSessionTree,
   isNotFound,
-  repairSession,
 } from "@/lib/runtime-api";
 import { HOST_ACTION_NAMES } from "@/lib/host-context";
 import { PROFILE, REQUEST_CONFIG } from "@/lib/profile";
@@ -49,7 +48,6 @@ export type AssistantEvents =
     }
   | { type: "user.steer"; text: string }
   | { type: "user.selectVariant"; leafId: string }
-  | { type: "user.repair" }
   | { type: "user.cancel" }
   | {
       type: "host.actionResult";
@@ -88,43 +86,7 @@ interface History {
   /** null when the requested leaf is unknown to the runtime: keep what is shown. */
   messages: MessageRecord[] | null;
   tree: TreeNode[];
-  /** The host action the runtime is still waiting on, from GET /api/sessions/{id}. */
-  pending: {
-    toolCallId: string;
-    toolName: string;
-    arguments?: Record<string, unknown> | null;
-    queued?: string[];
-  } | null;
-}
-
-/**
- * The pending action with its arguments: from the session detail when the
- * runtime sends them, else from the stored call in the transcript (older
- * runtimes), else null when it cannot be performed.
- */
-export function recoverPendingAction(
-  messages: MessageRecord[],
-  pending: {
-    toolCallId: string;
-    toolName: string;
-    arguments?: Record<string, unknown> | null;
-    queued?: string[];
-  },
-): PendingHostAction | null {
-  const queued = pending.queued ?? [];
-  if (pending.arguments && typeof pending.arguments === "object") {
-    return { callId: pending.toolCallId, toolName: pending.toolName, arguments: pending.arguments, queued };
-  }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.kind !== "assistant") continue;
-    for (const seg of m.segments) {
-      if (seg.kind !== "tool_group") continue;
-      const tool = seg.group.tools.find((t) => t.id === pending.toolCallId);
-      if (tool) return { callId: tool.id, toolName: pending.toolName, arguments: tool.input, queued };
-    }
-  }
-  return null;
+  pending: PendingHostAction | null;
 }
 
 function withLastAssistant(
@@ -239,21 +201,11 @@ export const assistantMachine = setup({
           ]);
           tree = t;
           if (detail.pending_action) {
-            const raw = detail.pending_action.arguments;
-            let args: Record<string, unknown> | null = null;
-            if (raw && typeof raw === "object") args = raw;
-            else if (typeof raw === "string") {
-              try {
-                args = JSON.parse(raw) as Record<string, unknown>;
-              } catch {
-                args = null;
-              }
-            }
             pending = {
-              toolCallId: detail.pending_action.tool_call_id,
+              callId: detail.pending_action.tool_call_id,
               toolName: detail.pending_action.tool_name,
-              arguments: args,
-              queued: detail.pending_action.queued ?? [],
+              arguments: detail.pending_action.arguments,
+              queued: detail.pending_action.queued,
             };
           }
         } catch (error) {
@@ -269,9 +221,6 @@ export const assistantMachine = setup({
         }
       },
     ),
-    repairer: fromPromise(async ({ input }: { input: { sessionId: string } }) => {
-      await repairSession(input.sessionId);
-    }),
     treeLoader: fromPromise(async ({ input }: { input: { sessionId: string } }): Promise<TreeNode[]> => {
       try {
         return await fetchSessionTree(input.sessionId);
@@ -464,18 +413,7 @@ export const assistantMachine = setup({
     isErrorEvent: ({ event }) =>
       event.type === "stream.event" && event.event.type === "error",
     hasPendingAction: ({ context }) => context.pendingAction !== null,
-    historyHasRecoverableAction: ({ event }) => {
-      const output = (event as { output?: History }).output;
-      return (
-        output?.pending != null &&
-        output.messages !== null &&
-        recoverPendingAction(output.messages, output.pending) !== null
-      );
-    },
-    historyHasUnrecoverableAction: ({ event }) => {
-      const output = (event as { output?: History }).output;
-      return output?.pending != null;
-    },
+    historyHasPendingAction: ({ event }) => doneOutput<History>(event).pending !== null,
     hasSession: ({ context }) => context.sessionId !== null,
     sessionDiffers: ({ context, event }) =>
       event.type === "app.session" && event.sessionId !== context.sessionId,
@@ -489,7 +427,7 @@ export const assistantMachine = setup({
     "- messages (MessageRecord[]): the displayed root-to-leaf path; the last record is the assistant message being streamed while streaming.",
     "- tree (TreeNode[]): the runtime's view of the session (GET /tree), refreshed after every turn; the parent of the next message and the variant switcher come from it.",
     "- leafId (string | null): the leaf whose path to load instead of the session's active leaf, set by user.selectVariant.",
-    "- pendingAction (PendingHostAction | null): the host tool call the runtime is waiting on, taken from final_response.pending_tool_call or recovered from GET /api/sessions/{id} + the stored call after a reload; cleared when answered or superseded.",
+    "- pendingAction (PendingHostAction | null): the host tool call the runtime is waiting on, taken from final_response.pending_tool_call or recovered from GET /api/sessions/{id} after a reload; cleared when answered or superseded.",
     "- connection (ConnectionStatus): transport status reported by the socket actor, for the header dot only.",
     "- error (string | null): the last non-turn failure (history load), shown above the message list.",
     "- totals (UsageTotals): tokens and cost summed over every assistant message in this session; a continuation's final_response carries the cumulative usage of its message, so totals are recomputed from the messages, never added.",
@@ -550,23 +488,15 @@ export const assistantMachine = setup({
         onDone: [
           {
             description:
-              "The runtime is still waiting on a host action whose arguments are in the stored transcript (a reload mid-action): perform it now.",
-            guard: "historyHasRecoverableAction",
+              "The session detail supplies a pending host action with its arguments after a reload: perform it now.",
+            guard: "historyHasPendingAction",
             target: "awaitingHostAction",
             actions: [
               "applyHistory",
               assign({
-                pendingAction: ({ event }) =>
-                  recoverPendingAction(event.output.messages ?? [], event.output.pending as NonNullable<History["pending"]>),
+                pendingAction: ({ event }) => event.output.pending,
               }),
             ],
-          },
-          {
-            description:
-              "The runtime is waiting on a host action this app cannot reconstruct: offer to repair the session.",
-            guard: "historyHasUnrecoverableAction",
-            target: "needsRepair",
-            actions: "applyHistory",
           },
           {
             description:
@@ -642,31 +572,6 @@ export const assistantMachine = setup({
         cancelling: {
           description:
             "Cancellation requested; the runtime answers with final_response(cancelled), a terminal error and status completed.",
-        },
-      },
-    },
-    needsRepair: {
-      description:
-        "The session has a pending host action this app cannot answer (its call is not in the transcript). The user can repair the session; the runtime resolves the call as unknown.",
-      on: {
-        "user.repair": {
-          description: "POST /api/sessions/{id}/repair, then reload.",
-          target: "repairing",
-        },
-      },
-    },
-    repairing: {
-      description: "Repairing the session. Invokes repairer.",
-      invoke: {
-        src: "repairer",
-        input: ({ context }) => ({ sessionId: context.sessionId ?? "" }),
-        onDone: { description: "Repaired; reload history.", target: "loadingHistory" },
-        onError: {
-          description: "The repair failed; stay and show why.",
-          target: "needsRepair",
-          actions: assign({
-            error: ({ event }) => `Repair failed: ${String(event.error)}`,
-          }),
         },
       },
     },

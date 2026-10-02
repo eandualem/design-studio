@@ -51,6 +51,11 @@ The `scratchpad` is for your own short-lived notes only; a preference that
 should outlive this conversation belongs in the style guide proposal, never
 in the scratchpad.
 
+## Steering
+
+A message the person sends while you are still working is steering: take
+it into account in the work under way instead of starting over.
+
 ## Messages from other systems
 
 A message that starts with `[via:…]` did not come from the person in the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEdit, parseBlocks, serializeBlocks } from "@/lib/blocks";
+import { applyEdit, parseBlocks } from "@/lib/blocks";
 
 const DOC = `# Payment service
 
@@ -32,10 +32,6 @@ describe("parseBlocks", () => {
     expect(blocks[2].summary).toBe("mermaid: flowchart TD");
     expect(blocks[0].summary).toBe("# Payment service");
     expect(blocks[4].source).toBe("```ts\nconst x = 1;\n```");
-  });
-
-  it("round-trips through serializeBlocks", () => {
-    expect(serializeBlocks(parseBlocks(DOC))).toBe(DOC);
   });
 
   it("does not split a fence that contains blank lines", () => {

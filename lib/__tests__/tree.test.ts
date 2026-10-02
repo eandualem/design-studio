@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addNode, leafOf, siblingsOf, truncateTo, variantsFor } from "@/lib/tree";
+import { leafOf, siblingsOf, truncateTo, variantsFor } from "@/lib/tree";
 import type { MessageRecord, TreeNode } from "@/types";
 
 const t = (id: string, parent_id: string | null, role: string, created_at: string): TreeNode => ({
@@ -59,9 +59,7 @@ describe("tree helpers", () => {
     });
   });
 
-  it("adds nodes once and truncates a path for branching", () => {
-    expect(addNode(TREE, t("u1", null, "user", "1"))).toHaveLength(6);
-    expect(addNode(TREE, t("u3", "a2", "user", "7"))).toHaveLength(7);
+  it("truncates a path for branching", () => {
     const path = [user("u1", null), assistant("a1", "u1"), user("u2", "a1")];
     expect(truncateTo(path, "a1").map((m) => m.id)).toEqual(["u1", "a1"]);
     expect(truncateTo(path, null)).toEqual([]);

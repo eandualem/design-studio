@@ -283,10 +283,6 @@ export const appMachine = setup({
       event.type === "files.loaded" &&
       context.requestedId !== null &&
       event.documents.some((d) => d.id === context.requestedId),
-    sessionChanged: ({ context, event }) => {
-      const document = documentFromEvent(event, context);
-      return document !== null && document.sessionId !== context.assistantRef.getSnapshot().context.sessionId;
-    },
     adoptsLobby: ({ context, event }) =>
       documentFromEvent(event, context)?.sessionId === context.lobbySessionId,
     deletedOpen: ({ context, event }) => event.type === "files.deleted" && event.id === context.openId,
